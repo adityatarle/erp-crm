@@ -220,7 +220,7 @@ class ReceiptNoteController extends Controller
             $missingFinancialDetails[] = 'Invoice Date';
         }
         if (!empty($missingFinancialDetails)) {
-            return redirect()->back()->with('error', 'Cannot convert to purchase entry. Missing or invalid financial details: ' . implode(', ', $missingFinancialDetails));
+            return redirect()->back()->with('error', 'Conversion failed: Please provide all required financial details (Invoice Number, Invoice Date, and valid product prices) before converting to a purchase entry. Missing or invalid: ' . implode(', ', $missingFinancialDetails));
         }
         
         $request->validate([
