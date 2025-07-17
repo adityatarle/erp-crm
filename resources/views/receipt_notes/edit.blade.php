@@ -259,8 +259,8 @@
                         @method('POST')
                         <input type="hidden" name="purchase_order_id" id="convert_purchase_order_id" value="{{ $receiptNote->purchase_order_id }}">
                         <input type="hidden" name="party_id" value="{{ $receiptNote->party_id }}">
-                        <input type="hidden" name="invoice_number" value="{{  $receiptNote->invoice_number }}">
-                        <input type="hidden" name="invoice_date" value="{{  $receiptNote->invoice_date }}">
+                        <input type="hidden" name="invoice_number" value="{{ $receiptNote->invoice_number ?? '' }}">
+                        <input type="hidden" name="invoice_date" value="{{ $receiptNote->invoice_date ?? '' }}">
                         <input type="hidden" name="receipt_number" value="{{ old('receipt_number', $receiptNote->receipt_number) }}">
                         <input type="hidden" name="receipt_date" value="{{ old('receipt_date', $receiptNote->receipt_date) }}">
                         <input type="hidden" name="note" value="{{ old('note', $receiptNote->note) }}">
