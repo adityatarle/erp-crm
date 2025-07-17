@@ -269,6 +269,7 @@
                         <input type="hidden" name="receipt_number" value="{{ old('receipt_number', $receiptNote->receipt_number) }}">
                         <input type="hidden" name="receipt_date" value="{{ old('receipt_date', $receiptNote->receipt_date) }}">
                         <input type="hidden" name="note" value="{{ old('note', $receiptNote->note) }}">
+                        <input type="hidden" name="purchase_date" id="convert_purchase_date" value="{{ old('purchase_date', $receiptNote->purchase_date ?? $receiptNote->receipt_date) }}">
 
                         @foreach($receiptNote->items as $index => $item)
                         <input type="hidden" name="products[{{ $index }}][product_id]" value="{{ $item->product_id }}">
@@ -381,6 +382,7 @@
                 $convertForm.find('input[name="invoice_number"]').val($('#invoice_number').val());
                 $convertForm.find('input[name="invoice_date"]').val($('#invoice_date').val());
                 $convertForm.find('input[name="note"]').val($('#note').val());
+                $convertForm.find('input[name="purchase_date"]').val($('#purchase_date').val());
             }
 
 
@@ -406,7 +408,7 @@
             });
 
             // Also update conversion form on relevant changes
-            $(document).on('input change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id', updateConversionForm);
+            $(document).on('input change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id, #purchase_date', updateConversionForm);
         });
     </script>
 </body>
