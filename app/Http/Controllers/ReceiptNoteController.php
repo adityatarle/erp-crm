@@ -191,6 +191,30 @@ class ReceiptNoteController extends Controller
 
     public function convertToPurchaseEntry(Request $request, $id)
     {
+        // Get the receipt note to check existing invoice details
+        $receiptNote = ReceiptNote::findOrFail($id);
+        
+        // If invoice details are empty, provide defaults or make them optional
+        $invoiceNumber = $request->invoice_number;
+        $invoiceDate = $request->invoice_date;
+        
+        // If invoice fields are empty, generate defaults
+        if (empty($invoiceNumber)) {
+            // Generate a unique invoice number
+            do {
+                $invoiceNumber = 'INV-' . $receiptNote->receipt_number . '-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+            } while (PurchaseEntry::where('invoice_number', $invoiceNumber)->exists());
+        }
+        if (empty($invoiceDate)) {
+            $invoiceDate = $receiptNote->receipt_date;
+        }
+        
+        // Update request with default values
+        $request->merge([
+            'invoice_number' => $invoiceNumber,
+            'invoice_date' => $invoiceDate,
+        ]);
+        
         $request->validate([
             'invoice_number' => 'required|string|unique:purchase_entries,invoice_number',
             'invoice_date' => 'required|date',
@@ -207,10 +231,11 @@ class ReceiptNoteController extends Controller
         ]);
 
         try {
-            return DB::transaction(function () use ($request, $id) {
+            return DB::transaction(function () use ($request, $id, $receiptNote) {
                 Log::info('Starting convertToPurchaseEntry', ['receipt_note_id' => $id]);
 
-                $receiptNote = ReceiptNote::with('items')->findOrFail($id);
+                // Reload with items relationship
+                $receiptNote = $receiptNote->load('items');
                 Log::info('Receipt note loaded', ['receipt_note_id' => $receiptNote->id]);
 
                 $receivedProducts = array_filter($request->products, fn($product) => $product['quantity'] > 0);
@@ -613,6 +638,32 @@ class ReceiptNoteController extends Controller
             Log::error('Transaction failed in update', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return redirect()->back()->withErrors(['error' => 'An error occurred while updating the receipt note. Check logs for details.']);
         }
+    }
+
+    /**
+     * Show the conversion form for receipt note to purchase entry
+     */
+    public function convert($id)
+    {
+        $receiptNote = ReceiptNote::with(['party', 'items.product'])->findOrFail($id);
+        
+        // Get available purchase orders for the same party
+        $purchaseOrders = PurchaseOrder::where('party_id', $receiptNote->party_id)
+            ->whereIn('status', ['pending', 'partial'])
+            ->orderBy('purchase_order_number', 'desc')
+            ->get();
+        
+        return view('receipt_notes.convert', compact('receiptNote', 'purchaseOrders'));
+    }
+
+    /**
+     * Handle conversion form submission from the dedicated conversion page
+     */
+    public function storeConversion(Request $request, $id)
+    {
+        // This method can use the same logic as convertToPurchaseEntry
+        // but with stricter validation since it's from the dedicated form
+        return $this->convertToPurchaseEntry($request, $id);
     }
 
     // ADD THIS NEW METHOD TO THE CONTROLLER
