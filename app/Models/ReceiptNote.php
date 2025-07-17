@@ -10,6 +10,7 @@ class ReceiptNote extends Model
         'receipt_number',
         'receipt_date',
         'party_id',
+        'purchase_order_id',
         'note',
         'purchase_order_number',
         'invoice_number',
@@ -28,5 +29,10 @@ class ReceiptNote extends Model
     public function items()
     {
         return $this->hasMany(ReceiptNoteItem::class);
+    }
+
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 }

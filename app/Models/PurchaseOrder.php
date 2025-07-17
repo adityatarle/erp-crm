@@ -51,13 +51,13 @@ class PurchaseOrder extends Model
             return 'Pending';
         }
 
-        // 1. Get quantities from Receipt Notes
+        // 1. Get quantities from Receipt Notes - FIXED: Use 'quantity' instead of 'quantity_received'
         $receivedViaNote = $this->receiptNoteItems
                                 ->where('status', 'received')
                                 ->groupBy('product_id')
                                 ->map(function ($items) {
-                                    // Use the correct column name from receipt_note_items table
-                                    return $items->sum('quantity_received'); 
+                                    // Fixed column name from 'quantity_received' to 'quantity'
+                                    return $items->sum('quantity'); 
                                 });
         
         // 2. Get quantities from direct Purchase Entries

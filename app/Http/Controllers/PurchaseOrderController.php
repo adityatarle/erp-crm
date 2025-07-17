@@ -135,10 +135,11 @@ class PurchaseOrderController extends Controller
         ])->findOrFail($id);
 
         // Calculate received quantities from BOTH sources for the view
+        // FIXED: Use 'quantity' instead of 'quantity_received'
         $receivedViaNote = $purchaseOrder->receiptNoteItems
             ->where('status', 'received')
             ->groupBy('product_id')
-            ->map(fn($items) => $items->sum('quantity_received'));
+            ->map(fn($items) => $items->sum('quantity')); // Fixed column name
         
         $receivedViaEntry = $purchaseOrder->purchaseEntryItems
             ->where('status', 'received')
@@ -163,7 +164,8 @@ class PurchaseOrderController extends Controller
     {
         $po = PurchaseOrder::with(['party', 'items.product', 'receiptNoteItems', 'purchaseEntryItems'])->findOrFail($id);
 
-        $receivedViaNote = $po->receiptNoteItems->groupBy('product_id')->map(fn($g) => $g->sum('quantity_received'));
+        // FIXED: Use 'quantity' instead of 'quantity_received'
+        $receivedViaNote = $po->receiptNoteItems->groupBy('product_id')->map(fn($g) => $g->sum('quantity')); // Fixed column name
         $receivedViaEntry = $po->purchaseEntryItems->groupBy('product_id')->map(fn($g) => $g->sum('quantity'));
         
         $remainingItems = $po->items->map(function ($item) use ($receivedViaNote, $receivedViaEntry) {
@@ -262,8 +264,8 @@ class PurchaseOrderController extends Controller
     {
         $po = PurchaseOrder::with(['party', 'items.product', 'receiptNoteItems', 'purchaseEntryItems'])->findOrFail($id);
 
-        // Get quantities received via Receipt Notes
-        $receivedViaNote = $po->receiptNoteItems->groupBy('product_id')->map(fn($g) => $g->sum('quantity_received'));
+        // Get quantities received via Receipt Notes - FIXED: Use 'quantity' instead of 'quantity_received'
+        $receivedViaNote = $po->receiptNoteItems->groupBy('product_id')->map(fn($g) => $g->sum('quantity')); // Fixed column name
         
         // Get quantities received via direct Purchase Entries
         $receivedViaEntry = $po->purchaseEntryItems->groupBy('product_id')->map(fn($g) => $g->sum('quantity'));
