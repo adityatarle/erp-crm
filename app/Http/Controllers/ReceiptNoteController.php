@@ -242,6 +242,20 @@ class ReceiptNoteController extends Controller
             'invoice_date.required' => 'Invoice date is required for purchase entry conversion.',
         ]);
 
+        // Additional backend validation: Only IGST or CGST/SGST can be filled for each product
+        $invalidTaxRows = [];
+        foreach ($products as $index => $product) {
+            $cgst = floatval($product['cgst_rate'] ?? 0);
+            $sgst = floatval($product['sgst_rate'] ?? 0);
+            $igst = floatval($product['igst_rate'] ?? 0);
+            if ((($cgst > 0 || $sgst > 0) && $igst > 0)) {
+                $invalidTaxRows[] = $index + 1;
+            }
+        }
+        if (!empty($invalidTaxRows)) {
+            return redirect()->back()->with('error', 'For each product, you can only enter either IGST or CGST/SGST, not both. Please correct row(s): ' . implode(', ', $invalidTaxRows));
+        }
+
         try {
             return DB::transaction(function () use ($request, $id, $receiptNote) {
                 Log::info('Starting convertToPurchaseEntry', ['receipt_note_id' => $id]);
