@@ -156,13 +156,6 @@
                                 </div>
                                 
                                 <div class="col-md-6">
-                                    <label for="discount" class="form-label">Global Discount (%)</label>
-                                    <input type="number" name="discount" id="discount" class="form-control" value="{{ old('discount', $receiptNote->discount ?? 0) }}" step="0.01" min="0" max="100" placeholder="0.00">
-                                    @error('discount')
-                                    <div class="text-danger">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                <div class="col-md-6">
                                     <label for="note" class="form-label">Note (Optional)</label>
                                     <textarea name="note" id="note" class="form-control" rows="2" placeholder="Add any additional notes">{{ old('note', $receiptNote->note) }}</textarea>
                                     @error('note')
@@ -195,7 +188,7 @@
                                         <small class="text-muted">Max: {{ $item->quantity_available }}</small>
                                     </div>
                                     <div><input type="number" name="products[{{ $index }}][unit_price]" class="form-control unit-price" value="{{ old('products.' . $index . '.unit_price', $item->unit_price) }}" step="0.01" required></div>
-                                    <div><input type="number" name="products[{{ $index }}][discount]" class="form-control discount-input" value="{{ old('products.' . $index . '.discount', $item->discount ?? $receiptNote->discount) }}" step="0.01" min="0" max="100"></div>
+                                    <div><input type="number" name="products[{{ $index }}][discount]" class="form-control discount-input" value="{{ old('products.' . $index . '.discount', $item->discount) }}" step="0.01" min="0" max="100"></div>
                                     <div><input type="number" name="products[{{ $index }}][cgst_rate]" class="form-control cgst-rate" value="{{ old('products.' . $index . '.cgst_rate', $item->cgst_rate) }}" step="0.01" min="0" max="100"></div>
                                     <div><input type="number" name="products[{{ $index }}][sgst_rate]" class="form-control sgst-rate" value="{{ old('products.' . $index . '.sgst_rate', $item->sgst_rate) }}" step="0.01" min="0" max="100"></div>
                                     <div><input type="number" name="products[{{ $index }}][igst_rate]" class="form-control igst-rate" value="{{ old('products.' . $index . '.igst_rate', $item->igst_rate) }}" step="0.01" min="0" max="100"></div>
@@ -277,7 +270,7 @@
                         <input type="hidden" name="products[{{ $index }}][product_id]" value="{{ $item->product_id }}">
                         <input type="hidden" name="products[{{ $index }}][quantity]" class="convert-quantity-input" value="{{ old('products.' . $index . '.quantity', $item->quantity) }}">
                         <input type="hidden" name="products[{{ $index }}][unit_price]" class="convert-unit-price" value="{{ old('products.' . $index . '.unit_price', $item->unit_price) }}">
-                        <input type="hidden" name="products[{{ $index }}][discount]" class="convert-discount-input" value="{{ old('products.' . $index . '.discount', $item->discount ?? $receiptNote->discount) }}">
+                        <input type="hidden" name="products[{{ $index }}][discount]" class="convert-discount-input" value="{{ old('products.' . $index . '.discount', $item->discount) }}">
                         <input type="hidden" name="products[{{ $index }}][cgst_rate]" class="convert-cgst-rate" value="{{ old('products.' . $index . '.cgst_rate', $item->cgst_rate) }}">
                         <input type="hidden" name="products[{{ $index }}][sgst_rate]" class="convert-sgst-rate" value="{{ old('products.' . $index . '.sgst_rate', $item->sgst_rate) }}">
                         <input type="hidden" name="products[{{ $index }}][igst_rate]" class="convert-igst-rate" value="{{ old('products.' . $index . '.igst_rate', $item->igst_rate) }}">
@@ -383,7 +376,6 @@
                 $convertForm.find('input[name="receipt_date"]').val($('#receipt_date').val());
                 $convertForm.find('input[name="invoice_number"]').val($('#invoice_number').val());
                 $convertForm.find('input[name="invoice_date"]').val($('#invoice_date').val());
-                $convertForm.find('input[name="discount"]').val($('#discount').val());
                 $convertForm.find('input[name="note"]').val($('#note').val());
             }
 
@@ -410,7 +402,7 @@
             });
 
             // Also update conversion form on relevant changes
-            $(document).on('input change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #discount, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id', updateConversionForm);
+            $(document).on('input change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id', updateConversionForm);
         });
     </script>
 </body>
