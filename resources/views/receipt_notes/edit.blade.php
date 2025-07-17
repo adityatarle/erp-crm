@@ -73,25 +73,6 @@
             font-weight: bold;
         }
 
-        /* Real-time update animation */
-        .totals-card {
-            transition: all 0.3s ease;
-        }
-        
-        .totals-card.updated {
-            transform: scale(1.02);
-            box-shadow: 0 4px 8px rgba(0,123,255,0.3);
-            border-color: #007bff;
-        }
-        
-        .totals-card .row div[id] {
-            transition: color 0.2s ease;
-        }
-        
-        .totals-card.updated .row div[id] {
-            color: #007bff !important;
-        }
-
         @media (max-width: 1200px) {
             .products-header {
                 display: none;
@@ -275,6 +256,7 @@
                         </div>
 
                         <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-warning btn-sm me-2" onclick="calculateTotals()" id="recalculate-btn">🔄 Recalculate Totals</button>
                             <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Update Receipt Note</button>
                         </div>
                     </form>
@@ -310,9 +292,18 @@
 
     <script>
         $(document).ready(function() {
+            console.log('🚀 JavaScript loaded successfully!');
+            console.log('📦 Receipt note items count:', {{ $receiptNote->items->count() }});
+            
             const productsList = $('#products-list');
             const productsHeader = $('.products-header');
             let productIndex = {{ $receiptNote->items->count() }};
+            
+            console.log('📋 Found elements:', {
+                productsList: productsList.length,
+                productsHeader: productsHeader.length,
+                productIndex: productIndex
+            });
 
             // Show products header if items exist
             if (productsList.children().length > 0) {
@@ -421,98 +412,125 @@
                 $convertForm.find('input[name="note"]').val($('#note').val());
             }
 
-            // REAL-TIME CALCULATION FUNCTION
+            // Calculate totals - ENHANCED VERSION WITH BETTER DEBUGGING
             function calculateTotals() {
-                // Initialize totals
+                console.log('🔄 Starting calculateTotals function...'); // Debug log
+                
+                // Check if required elements exist
+                const subtotalEl = $('#subtotal');
+                const totalDiscountEl = $('#total_discount');
+                const totalCgstEl = $('#total_cgst');
+                const totalSgstEl = $('#total_sgst');
+                const totalIgstEl = $('#total_igst');
+                const grandTotalEl = $('#grand_total');
+                
+                console.log('📊 Elements found:', {
+                    subtotal: subtotalEl.length,
+                    totalDiscount: totalDiscountEl.length,
+                    totalCgst: totalCgstEl.length,
+                    totalSgst: totalSgstEl.length,
+                    totalIgst: totalIgstEl.length,
+                    grandTotal: grandTotalEl.length
+                });
+                
+                if (subtotalEl.length === 0) {
+                    console.error('❌ Subtotal element not found!');
+                    return;
+                }
+                
                 let grandSubtotal = 0;
                 let grandTotalDiscount = 0;
                 let grandTotalCgst = 0;
                 let grandTotalSgst = 0;
                 let grandTotalIgst = 0;
 
-                // Get global discount rate
-                const globalDiscountRate = parseFloat($('#discount').val()) || 0;
+                const discountRate = parseFloat($('#discount').val()) || 0;
+                console.log('💰 Global discount rate:', discountRate); // Debug log
 
-                // Process each product row
-                $('.product-item-row').each(function() {
+                const productRows = $('.product-item-row');
+                console.log('📦 Found product rows:', productRows.length);
+
+                productRows.each(function(index) {
                     const $row = $(this);
                     const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
                     const unitPrice = parseFloat($row.find('.unit-price').val()) || 0;
-                    const itemDiscountRate = parseFloat($row.find('.discount-input').val()) || globalDiscountRate;
+                    
+                    // Check for item-specific discount first, then global discount
+                    const itemDiscount = parseFloat($row.find('.discount-input').val());
+                    const effectiveDiscountRate = !isNaN(itemDiscount) && itemDiscount !== '' ? itemDiscount : discountRate;
+                    
                     const cgstRate = parseFloat($row.find('.cgst-rate').val()) || 0;
                     const sgstRate = parseFloat($row.find('.sgst-rate').val()) || 0;
                     const igstRate = parseFloat($row.find('.igst-rate').val()) || 0;
 
+                    console.log(`📋 Row ${index}:`, {quantity, unitPrice, effectiveDiscountRate, cgstRate, sgstRate, igstRate}); // Debug log
+
                     if (quantity > 0 && unitPrice > 0) {
-                        // Calculate base price
                         const basePrice = quantity * unitPrice;
-                        
-                        // Calculate discount
-                        const discountAmount = basePrice * (itemDiscountRate / 100);
+                        const discountAmount = basePrice * (effectiveDiscountRate / 100);
                         const priceAfterDiscount = basePrice - discountAmount;
 
-                        // Calculate GST
                         const cgstAmount = priceAfterDiscount * (cgstRate / 100);
                         const sgstAmount = priceAfterDiscount * (sgstRate / 100);
                         const igstAmount = priceAfterDiscount * (igstRate / 100);
 
-                        // Add to grand totals
                         grandSubtotal += priceAfterDiscount;
                         grandTotalDiscount += discountAmount;
                         grandTotalCgst += cgstAmount;
                         grandTotalSgst += sgstAmount;
                         grandTotalIgst += igstAmount;
+
+                        console.log(`💵 Row ${index} calculations:`, {
+                            basePrice: basePrice.toFixed(2), 
+                            discountAmount: discountAmount.toFixed(2), 
+                            priceAfterDiscount: priceAfterDiscount.toFixed(2), 
+                            cgstAmount: cgstAmount.toFixed(2), 
+                            sgstAmount: sgstAmount.toFixed(2), 
+                            igstAmount: igstAmount.toFixed(2)
+                        }); // Debug log
+                    } else {
+                        console.log(`⚠️ Row ${index} skipped: quantity=${quantity}, unitPrice=${unitPrice}`);
                     }
                 });
 
-                // Calculate grand total
                 const grandTotal = grandSubtotal + grandTotalCgst + grandTotalSgst + grandTotalIgst;
-
-                // Update display elements with animation
-                $('#subtotal').text('₹' + grandSubtotal.toFixed(2));
-                $('#total_discount').text('₹' + grandTotalDiscount.toFixed(2));
-                $('#total_cgst').text('₹' + grandTotalCgst.toFixed(2));
-                $('#total_sgst').text('₹' + grandTotalSgst.toFixed(2));
-                $('#total_igst').text('₹' + grandTotalIgst.toFixed(2));
-                $('#grand_total').text('₹' + grandTotal.toFixed(2));
                 
-                // Add a subtle animation to show the update
-                $('.totals-card').addClass('updated');
-                setTimeout(() => $('.totals-card').removeClass('updated'), 300);
+                console.log('🎯 Final totals calculated:', {
+                    grandSubtotal: grandSubtotal.toFixed(2), 
+                    grandTotalDiscount: grandTotalDiscount.toFixed(2), 
+                    grandTotalCgst: grandTotalCgst.toFixed(2), 
+                    grandTotalSgst: grandTotalSgst.toFixed(2), 
+                    grandTotalIgst: grandTotalIgst.toFixed(2), 
+                    grandTotal: grandTotal.toFixed(2)
+                }); // Debug log
+
+                // Update the display elements
+                try {
+                    subtotalEl.text('₹' + grandSubtotal.toFixed(2));
+                    totalDiscountEl.text('₹' + grandTotalDiscount.toFixed(2));
+                    totalCgstEl.text('₹' + grandTotalCgst.toFixed(2));
+                    totalSgstEl.text('₹' + grandTotalSgst.toFixed(2));
+                    totalIgstEl.text('₹' + grandTotalIgst.toFixed(2));
+                    grandTotalEl.text('₹' + grandTotal.toFixed(2));
+                    
+                    console.log('✅ Successfully updated all total display elements');
+                } catch (error) {
+                    console.error('❌ Error updating display elements:', error);
+                }
             }
 
             // Make calculateTotals globally accessible for the manual button
             window.calculateTotals = calculateTotals;
 
-            // Validate conversion form before submission - WITH UNIT PRICE CHECK
+            // Validate conversion form before submission - SIMPLIFIED
             $('#convert-btn').on('click', function(e) {
-                console.log('🔄 Convert button clicked, checking unit prices...');
+                console.log('🔄 Convert button clicked...');
                 
-                let hasInvalidPrices = false;
-                let invalidRows = [];
-                
-                // Check each product row for valid unit prices
-                $('.product-item-row').each(function(index) {
-                    const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
-                    const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
-                    
-                    if (quantity > 0 && unitPrice <= 0) {
-                        hasInvalidPrices = true;
-                        invalidRows.push(index + 1);
-                    }
-                });
-                
-                if (hasInvalidPrices) {
-                    e.preventDefault();
-                    alert(`Cannot convert to Purchase Entry!\n\nProducts at row(s) ${invalidRows.join(', ')} have quantity > 0 but unit price is 0 or empty.\n\nPlease enter valid unit prices for all products before conversion.`);
-                    console.log('❌ Conversion blocked - invalid unit prices at rows:', invalidRows);
-                    return;
-                }
-                
-                // Update the conversion form and proceed
+                // Just update the conversion form and proceed
+                // Backend will handle validation and auto-generation
                 updateConversionForm();
                 
-
+                console.log('✅ Proceeding with conversion...');
             });
 
 
@@ -524,16 +542,20 @@
                 width: '100%'
             });
 
-            // REAL-TIME EVENT BINDING - Calculates totals as you type
-            $(document).on('input keyup change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, #discount', function() {
-                calculateTotals(); // Immediate calculation, no delay
+            // Trigger initial updates
+            setTimeout(function() {
+                updateConversionForm();
+                calculateTotals();
+            }, 100); // Small delay to ensure all elements are ready
+
+            // Update totals on input change - IMPROVED EVENT BINDING
+            $(document).on('input change keyup', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, #discount', function() {
+                console.log('Input changed:', $(this).attr('name'), '=', $(this).val()); // Debug log
+                calculateTotals();
             });
 
-            // Update conversion form on relevant changes
+            // Also update conversion form on relevant changes
             $(document).on('input change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #discount, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id', updateConversionForm);
-
-            // Calculate totals on page load
-            calculateTotals();
         });
     </script>
 </body>
