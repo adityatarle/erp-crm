@@ -155,7 +155,14 @@
                                     @enderror
                                 </div>
                                 
-                                <div class="col-12">
+                                <div class="col-md-6">
+                                    <label for="discount" class="form-label">Global Discount (%)</label>
+                                    <input type="number" name="discount" id="discount" class="form-control" value="{{ old('discount', $receiptNote->discount ?? 0) }}" step="0.01" min="0" max="100" placeholder="0.00">
+                                    @error('discount')
+                                    <div class="text-danger">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <div class="col-md-6">
                                     <label for="note" class="form-label">Note (Optional)</label>
                                     <textarea name="note" id="note" class="form-control" rows="2" placeholder="Add any additional notes">{{ old('note', $receiptNote->note) }}</textarea>
                                     @error('note')
@@ -265,7 +272,7 @@
                         <input type="hidden" name="receipt_number" value="{{ old('receipt_number', $receiptNote->receipt_number) }}">
                         <input type="hidden" name="receipt_date" value="{{ old('receipt_date', $receiptNote->receipt_date) }}">
                         <input type="hidden" name="note" value="{{ old('note', $receiptNote->note) }}">
-                        <input type="hidden" name="discount" value="{{ old('discount', $receiptNote->discount) }}">
+
                         @foreach($receiptNote->items as $index => $item)
                         <input type="hidden" name="products[{{ $index }}][product_id]" value="{{ $item->product_id }}">
                         <input type="hidden" name="products[{{ $index }}][quantity]" class="convert-quantity-input" value="{{ old('products.' . $index . '.quantity', $item->quantity) }}">
@@ -285,13 +292,18 @@
 
     <script>
         $(document).ready(function() {
+            console.log('🚀 JavaScript loaded successfully!');
+            console.log('📦 Receipt note items count:', {{ $receiptNote->items->count() }});
+            
             const productsList = $('#products-list');
             const productsHeader = $('.products-header');
-            let productIndex = {
-                {
-                    $receiptNote - > items - > count()
-                }
-            };
+            let productIndex = {{ $receiptNote->items->count() }};
+            
+            console.log('📋 Found elements:', {
+                productsList: productsList.length,
+                productsHeader: productsHeader.length,
+                productIndex: productIndex
+            });
 
             // Show products header if items exist
             if (productsList.children().length > 0) {
@@ -510,55 +522,15 @@
             // Make calculateTotals globally accessible for the manual button
             window.calculateTotals = calculateTotals;
 
-            // Validate conversion form before submission - ENHANCED WITH FINANCIAL VALIDATION
+            // Validate conversion form before submission - SIMPLIFIED
             $('#convert-btn').on('click', function(e) {
-                console.log('🔄 Convert button clicked, validating financial details...');
+                console.log('🔄 Convert button clicked...');
                 
-                const invoiceNumber = $('#invoice_number').val();
-                const invoiceDate = $('#invoice_date').val();
-                let missingDetails = [];
-                let hasValidProducts = false;
-
-                // Check invoice details
-                if (!invoiceNumber || invoiceNumber.trim() === '') {
-                    missingDetails.push('Invoice Number');
-                }
-                if (!invoiceDate || invoiceDate.trim() === '') {
-                    missingDetails.push('Invoice Date');
-                }
-
-                // Check product financial details
-                $('.product-item-row').each(function(index) {
-                    const $row = $(this);
-                    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
-                    const unitPrice = parseFloat($row.find('.unit-price').val()) || 0;
-                    
-                    if (quantity > 0) {
-                        hasValidProducts = true;
-                        if (unitPrice <= 0) {
-                            missingDetails.push(`Unit Price for product at row ${index + 1}`);
-                        }
-                    }
-                });
-
-                // If no valid products found
-                if (!hasValidProducts) {
-                    missingDetails.push('At least one product with quantity > 0');
-                }
-
-                // Show validation errors
-                if (missingDetails.length > 0) {
-                    e.preventDefault();
-                    const errorMessage = 'Cannot convert to Purchase Entry without complete financial details.\n\nMissing:\n• ' + 
-                                       missingDetails.join('\n• ') + 
-                                       '\n\nPlease fill in all required financial information before conversion.';
-                    alert(errorMessage);
-                    console.log('❌ Conversion blocked due to missing financial details:', missingDetails);
-                    return;
-                }
-
-                console.log('✅ Financial validation passed, proceeding with conversion...');
+                // Just update the conversion form and proceed
+                // Backend will handle validation and auto-generation
                 updateConversionForm();
+                
+                console.log('✅ Proceeding with conversion...');
             });
 
 

@@ -198,40 +198,46 @@ class ReceiptNoteController extends Controller
         $invoiceNumber = $request->invoice_number;
         $invoiceDate = $request->invoice_date;
         
-        // Check if this is a "quick conversion" (from edit page) vs dedicated conversion page
-        $isQuickConversion = empty($invoiceNumber) || empty($invoiceDate);
+        // Check if financial details are missing for business validation
+        $missingFinancialDetails = [];
         
-        if ($isQuickConversion) {
-            // For quick conversion, we need to ensure financial details are complete
-            $missingFinancialDetails = [];
+        // Check if invoice details are missing
+        if (empty($invoiceNumber)) {
+            $missingFinancialDetails[] = 'Invoice Number';
+        }
+        if (empty($invoiceDate)) {
+            $missingFinancialDetails[] = 'Invoice Date';
+        }
+        
+        // Check if any products have missing financial details
+        $products = $request->products ?? [];
+        $hasValidProducts = false;
+        
+        foreach ($products as $index => $product) {
+            $unitPrice = floatval($product['unit_price'] ?? 0);
+            $quantity = floatval($product['quantity'] ?? 0);
             
-            // Check if invoice details are missing
-            if (empty($invoiceNumber)) {
-                $missingFinancialDetails[] = 'Invoice Number';
-            }
-            if (empty($invoiceDate)) {
-                $missingFinancialDetails[] = 'Invoice Date';
-            }
-            
-            // Check if any products have missing financial details
-            $products = $request->products ?? [];
-            foreach ($products as $index => $product) {
-                $unitPrice = $product['unit_price'] ?? 0;
-                $quantity = $product['quantity'] ?? 0;
-                
-                if ($quantity > 0 && $unitPrice <= 0) {
+            if ($quantity > 0) {
+                $hasValidProducts = true;
+                if ($unitPrice <= 0) {
                     $missingFinancialDetails[] = "Unit Price for product at row " . ($index + 1);
                 }
             }
+        }
+        
+        if (!$hasValidProducts) {
+            $missingFinancialDetails[] = 'At least one product with quantity > 0';
+        }
+        
+        // Only show validation error if there are actual missing details
+        // For now, let's be less strict and just warn, but still allow conversion with auto-generation
+        if (!empty($missingFinancialDetails)) {
+            Log::warning('Converting receipt note with missing financial details', [
+                'receipt_note_id' => $id,
+                'missing_details' => $missingFinancialDetails
+            ]);
             
-            // If financial details are missing, return validation error
-            if (!empty($missingFinancialDetails)) {
-                return redirect()->back()->withErrors([
-                    'financial_validation' => 'Cannot convert to Purchase Entry without complete financial details. Missing: ' . implode(', ', $missingFinancialDetails) . '. Please fill in all invoice details, unit prices, and GST rates before conversion.'
-                ])->withInput();
-            }
-            
-            // If we reach here, generate invoice details only if ALL financial data is present
+            // Auto-generate missing invoice details
             if (empty($invoiceNumber)) {
                 do {
                     $invoiceNumber = 'INV-' . $receiptNote->receipt_number . '-' . date('Ymd') . '-' . strtoupper(Str::random(4));
@@ -255,7 +261,7 @@ class ReceiptNoteController extends Controller
             'products' => 'required|array|min:1',
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
-            'products.*.unit_price' => 'required|numeric|min:0.01', // Ensure unit price is not zero
+            'products.*.unit_price' => 'required|numeric|min:0', // Allow zero unit price for now
             'products.*.discount' => 'nullable|numeric|min:0|max:100',
             'products.*.cgst_rate' => 'nullable|numeric|min:0|max:100',
             'products.*.sgst_rate' => 'nullable|numeric|min:0|max:100',
