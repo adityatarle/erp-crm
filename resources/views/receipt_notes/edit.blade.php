@@ -306,8 +306,7 @@
             });
 
             // Show products header if items exist
-            if (productsList.children().length > 0) {
-                productsHeader.css('display', 'grid');
+
             }
 
             // Add new product row
@@ -338,37 +337,13 @@
                         <div class="d-flex align-items-center justify-content-center">
                             <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Remove from this receipt"><i class="fa fa-trash"></i></button>
                         </div>
-                    </div>`;
-                productsList.append(rowHtml);
-                productsHeader.css('display', 'grid');
-                productIndex++;
-                $(this).val(''); // Reset select
-                updateConversionForm();
-                calculateTotals();
-            });
 
-            // Remove product row
-            productsList.on('click', '.remove-item-btn', function() {
-                $(this).closest('.product-item-row').remove();
-                if (productsList.children().length === 0) {
-                    productsList.html('<p class="text-muted text-center p-4 border rounded">No products added.</p>');
-                    productsHeader.hide();
                 }
                 updateConversionForm();
                 calculateTotals();
             });
 
-            // Validate quantity input
-            productsList.on('input', '.quantity-input', function() {
-                const $input = $(this);
-                const maxQty = parseFloat($input.attr('max')) || 9999;
-                const currentQty = parseFloat($input.val());
 
-                if (currentQty > maxQty) {
-                    $input.val(maxQty);
-                    const $warning = $('<small class="text-danger d-block mt-1">Max qty exceeded.</small>');
-                    $input.parent().append($warning);
-                    setTimeout(() => $warning.remove(), 2000);
                 }
                 updateConversionForm();
                 calculateTotals();
@@ -412,126 +387,16 @@
                 $convertForm.find('input[name="note"]').val($('#note').val());
             }
 
-            // Calculate totals - ENHANCED VERSION WITH BETTER DEBUGGING
-            function calculateTotals() {
-                console.log('🔄 Starting calculateTotals function...'); // Debug log
-                
-                // Check if required elements exist
-                const subtotalEl = $('#subtotal');
-                const totalDiscountEl = $('#total_discount');
-                const totalCgstEl = $('#total_cgst');
-                const totalSgstEl = $('#total_sgst');
-                const totalIgstEl = $('#total_igst');
-                const grandTotalEl = $('#grand_total');
-                
-                console.log('📊 Elements found:', {
-                    subtotal: subtotalEl.length,
-                    totalDiscount: totalDiscountEl.length,
-                    totalCgst: totalCgstEl.length,
-                    totalSgst: totalSgstEl.length,
-                    totalIgst: totalIgstEl.length,
-                    grandTotal: grandTotalEl.length
-                });
-                
-                if (subtotalEl.length === 0) {
-                    console.error('❌ Subtotal element not found!');
-                    return;
-                }
-                
-                let grandSubtotal = 0;
-                let grandTotalDiscount = 0;
-                let grandTotalCgst = 0;
-                let grandTotalSgst = 0;
-                let grandTotalIgst = 0;
-
-                const discountRate = parseFloat($('#discount').val()) || 0;
-                console.log('💰 Global discount rate:', discountRate); // Debug log
-
-                const productRows = $('.product-item-row');
-                console.log('📦 Found product rows:', productRows.length);
-
-                productRows.each(function(index) {
-                    const $row = $(this);
-                    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
-                    const unitPrice = parseFloat($row.find('.unit-price').val()) || 0;
-                    
-                    // Check for item-specific discount first, then global discount
-                    const itemDiscount = parseFloat($row.find('.discount-input').val());
-                    const effectiveDiscountRate = !isNaN(itemDiscount) && itemDiscount !== '' ? itemDiscount : discountRate;
-                    
-                    const cgstRate = parseFloat($row.find('.cgst-rate').val()) || 0;
-                    const sgstRate = parseFloat($row.find('.sgst-rate').val()) || 0;
-                    const igstRate = parseFloat($row.find('.igst-rate').val()) || 0;
-
-                    console.log(`📋 Row ${index}:`, {quantity, unitPrice, effectiveDiscountRate, cgstRate, sgstRate, igstRate}); // Debug log
-
-                    if (quantity > 0 && unitPrice > 0) {
-                        const basePrice = quantity * unitPrice;
-                        const discountAmount = basePrice * (effectiveDiscountRate / 100);
-                        const priceAfterDiscount = basePrice - discountAmount;
 
                         const cgstAmount = priceAfterDiscount * (cgstRate / 100);
                         const sgstAmount = priceAfterDiscount * (sgstRate / 100);
                         const igstAmount = priceAfterDiscount * (igstRate / 100);
 
-                        grandSubtotal += priceAfterDiscount;
-                        grandTotalDiscount += discountAmount;
-                        grandTotalCgst += cgstAmount;
-                        grandTotalSgst += sgstAmount;
-                        grandTotalIgst += igstAmount;
 
-                        console.log(`💵 Row ${index} calculations:`, {
-                            basePrice: basePrice.toFixed(2), 
-                            discountAmount: discountAmount.toFixed(2), 
-                            priceAfterDiscount: priceAfterDiscount.toFixed(2), 
-                            cgstAmount: cgstAmount.toFixed(2), 
-                            sgstAmount: sgstAmount.toFixed(2), 
-                            igstAmount: igstAmount.toFixed(2)
-                        }); // Debug log
-                    } else {
-                        console.log(`⚠️ Row ${index} skipped: quantity=${quantity}, unitPrice=${unitPrice}`);
-                    }
-                });
-
-                const grandTotal = grandSubtotal + grandTotalCgst + grandTotalSgst + grandTotalIgst;
-                
-                console.log('🎯 Final totals calculated:', {
-                    grandSubtotal: grandSubtotal.toFixed(2), 
-                    grandTotalDiscount: grandTotalDiscount.toFixed(2), 
-                    grandTotalCgst: grandTotalCgst.toFixed(2), 
-                    grandTotalSgst: grandTotalSgst.toFixed(2), 
-                    grandTotalIgst: grandTotalIgst.toFixed(2), 
-                    grandTotal: grandTotal.toFixed(2)
-                }); // Debug log
-
-                // Update the display elements
-                try {
-                    subtotalEl.text('₹' + grandSubtotal.toFixed(2));
-                    totalDiscountEl.text('₹' + grandTotalDiscount.toFixed(2));
-                    totalCgstEl.text('₹' + grandTotalCgst.toFixed(2));
-                    totalSgstEl.text('₹' + grandTotalSgst.toFixed(2));
-                    totalIgstEl.text('₹' + grandTotalIgst.toFixed(2));
-                    grandTotalEl.text('₹' + grandTotal.toFixed(2));
-                    
-                    console.log('✅ Successfully updated all total display elements');
-                } catch (error) {
-                    console.error('❌ Error updating display elements:', error);
-                }
             }
 
-            // Make calculateTotals globally accessible for the manual button
+            // Make calculateTotals globally accessible
             window.calculateTotals = calculateTotals;
-
-            // Validate conversion form before submission - SIMPLIFIED
-            $('#convert-btn').on('click', function(e) {
-                console.log('🔄 Convert button clicked...');
-                
-                // Just update the conversion form and proceed
-                // Backend will handle validation and auto-generation
-                updateConversionForm();
-                
-                console.log('✅ Proceeding with conversion...');
-            });
 
 
 
@@ -542,16 +407,6 @@
                 width: '100%'
             });
 
-            // Trigger initial updates
-            setTimeout(function() {
-                updateConversionForm();
-                calculateTotals();
-            }, 100); // Small delay to ensure all elements are ready
-
-            // Update totals on input change - IMPROVED EVENT BINDING
-            $(document).on('input change keyup', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, #discount', function() {
-                console.log('Input changed:', $(this).attr('name'), '=', $(this).val()); // Debug log
-                calculateTotals();
             });
 
             // Also update conversion form on relevant changes
