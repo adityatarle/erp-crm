@@ -163,8 +163,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/receipt_notes', [ReceiptNoteController::class, 'index'])->name('receipt_notes.index');
     Route::get('/receipt_notes/create', [ReceiptNoteController::class, 'create'])->name('receipt_notes.create');
     Route::post('/receipt_notes', [ReceiptNoteController::class, 'store'])->name('receipt_notes.store');
-    // Receipt Notes Conversion Routes
-    Route::get('/receipt-notes/{id}/convert', [ReceiptNoteController::class, 'convert'])->name('receipt_notes.convert_form');
+    // Receipt Notes Conversion Routes (only POST route needed for direct conversion from edit page)
     Route::post('/receipt-notes/{id}/convert', [App\Http\Controllers\ReceiptNoteController::class, 'convertToPurchaseEntry'])->name('receipt_notes.convert');
     Route::get('/receipt-notes/{receiptNote}/edit', [ReceiptNoteController::class, 'edit'])->name('receipt_notes.edit');
     Route::put('/receipt-notes/{receiptNote}', [ReceiptNoteController::class, 'update'])->name('receipt_notes.update');

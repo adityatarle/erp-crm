@@ -32,6 +32,7 @@
                                     <th>Party</th>
                                     <th>Note</th>
                                     <th>Total with GST</th>
+                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -43,11 +44,15 @@
                                     <td>{{ $note->party->name }}</td>
                                     <td>{{ $note->note ?? 'N/A' }}</td>
                                     <td>{{ number_format($note->items->sum('total_price'), 2) }}</td>
+                                    <td>
+                                        @if($note->is_converted)
+                                            <span class="badge bg-success">Converted</span>
+                                        @else
+                                            <span class="badge bg-warning">Pending</span>
+                                        @endif
+                                    </td>
                                     <td class="d-flex gap-1">
                                         <a href="{{ route('receipt_notes.edit', $note->id) }}" class="btn btn-sm btn-warning">Edit</a>
-                                        @if(empty($note->is_converted) || !$note->is_converted)
-                                            <a href="{{ route('receipt_notes.convert_form', $note->id) }}" class="btn btn-sm btn-success">Convert to Purchase Entry</a>
-                                        @endif
                                         <a href="{{ route('receipt_notes.pdf', $note->id) }}" class="btn btn-sm btn-danger" target="_blank">
                                             <i class="fa fa-file-pdf"></i> PDF
                                         </a>
