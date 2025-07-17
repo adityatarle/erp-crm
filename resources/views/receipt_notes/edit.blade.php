@@ -256,6 +256,7 @@
                         </div>
 
                         <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-warning btn-sm me-2" onclick="calculateTotals()" id="recalculate-btn">🔄 Recalculate Totals</button>
                             <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Update Receipt Note</button>
                         </div>
                     </form>
@@ -290,30 +291,32 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const productsList = document.getElementById('products-list');
-            const productsHeader = document.querySelector('.products-header');
+        $(document).ready(function() {
+            console.log('🚀 JavaScript loaded successfully!');
+            console.log('📦 Receipt note items count:', {{ $receiptNote->items->count() }});
+            
+            const productsList = $('#products-list');
+            const productsHeader = $('.products-header');
             let productIndex = {{ $receiptNote->items->count() }};
+            
+            console.log('📋 Found elements:', {
+                productsList: productsList.length,
+                productsHeader: productsHeader.length,
+                productIndex: productIndex
+            });
 
             // Show products header if items exist
-            if (productsList && productsList.children.length > 0) {
-                if (productsHeader) {
-                    productsHeader.style.display = 'grid';
-                }
+
             }
 
             // Add new product row
-            const addProductSelect = document.getElementById('add_product');
-            if (addProductSelect) {
-                addProductSelect.addEventListener('change', function() {
-                    const productId = this.value;
-                    const productName = this.options[this.selectedIndex].dataset.name;
-                    if (!productId) return;
+            $('#add_product').on('change', function() {
+                const productId = $(this).val();
+                const productName = $(this).find('option:selected').data('name');
+                if (!productId) return;
 
-                    const newRow = document.createElement('div');
-                    newRow.className = 'product-item-row';
-                    newRow.id = `row-${productIndex}`;
-                    newRow.innerHTML = `
+                const rowHtml = `
+                    <div class="product-item-row" id="row-${productIndex}">
                         <input type="hidden" name="products[${productIndex}][product_id]" value="${productId}">
                         <div class="fw-bold d-flex align-items-center">${productName}</div>
                         <div>
@@ -334,209 +337,80 @@
                         <div class="d-flex align-items-center justify-content-center">
                             <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Remove from this receipt"><i class="fa fa-trash"></i></button>
                         </div>
-                    `;
-                    productsList.appendChild(newRow);
-                    productsHeader.style.display = 'grid';
-                    productIndex++;
-                    this.value = ''; // Reset select
-                });
-            }
 
-            // Remove product row
-            productsList.addEventListener('click', function(e) {
-                if (e.target.closest('.remove-item-btn')) {
-                    e.target.closest('.product-item-row').remove();
-                    if (productsList.children.length === 0) {
-                        productsList.innerHTML = '<p class="text-muted text-center p-4 border rounded">No products added.</p>';
-                        productsHeader.style.display = 'none';
-                    }
-                    updateConversionForm();
-                    calculateTotals();
                 }
+                updateConversionForm();
+                calculateTotals();
             });
 
-            // Quantity validation
-            productsList.addEventListener('input', function(e) {
-                if (e.target.classList.contains('quantity-input')) {
-                    const input = e.target;
-                    const maxQty = parseFloat(input.getAttribute('max')) || 9999;
-                    const currentQty = parseFloat(input.value);
 
-                    if (currentQty > maxQty) {
-                        input.value = maxQty;
-                        const warning = document.createElement('small');
-                        warning.className = 'text-danger d-block mt-1';
-                        warning.textContent = 'Max qty exceeded.';
-                        input.parentElement.appendChild(warning);
-                        setTimeout(() => warning.remove(), 2000);
-                    }
                 }
+                updateConversionForm();
+                calculateTotals();
             });
 
             // Update conversion form inputs
             function updateConversionForm() {
-                const convertForm = document.getElementById('convert-receipt-note-form');
-                if (!convertForm) return;
-                
-                // Clear existing product inputs
-                convertForm.querySelectorAll('input[name^="products"]').forEach(input => input.remove());
+                const $convertForm = $('#convert-receipt-note-form');
+                $convertForm.find('input[name^="products"]').remove(); // Clear existing product inputs
 
-                document.querySelectorAll('.product-item-row').forEach((row, index) => {
-                    const productId = row.querySelector('input[name$="[product_id]"]').value;
-                    const quantity = row.querySelector('.quantity-input').value;
-                    const unitPrice = row.querySelector('.unit-price').value;
-                    const discount = row.querySelector('.discount-input').value;
-                    const cgstRate = row.querySelector('.cgst-rate').value;
-                    const sgstRate = row.querySelector('.sgst-rate').value;
-                    const igstRate = row.querySelector('.igst-rate').value;
-                    const status = row.querySelector('.status-select').value;
+                $('.product-item-row').each(function(index) {
+                    const $row = $(this);
+                    const productId = $row.find('input[name$="[product_id]"]').val();
+                    const quantity = $row.find('.quantity-input').val();
+                    const unitPrice = $row.find('.unit-price').val();
+                    const discount = $row.find('.discount-input').val();
+                    const cgstRate = $row.find('.cgst-rate').val();
+                    const sgstRate = $row.find('.sgst-rate').val();
+                    const igstRate = $row.find('.igst-rate').val();
+                    const status = $row.find('.status-select').val();
 
-                    // Create hidden inputs for conversion form
-                    const hiddenInputs = [
-                        {name: `products[${index}][product_id]`, value: productId},
-                        {name: `products[${index}][quantity]`, value: quantity, class: 'convert-quantity-input'},
-                        {name: `products[${index}][unit_price]`, value: unitPrice, class: 'convert-unit-price'},
-                        {name: `products[${index}][discount]`, value: discount, class: 'convert-discount-input'},
-                        {name: `products[${index}][cgst_rate]`, value: cgstRate, class: 'convert-cgst-rate'},
-                        {name: `products[${index}][sgst_rate]`, value: sgstRate, class: 'convert-sgst-rate'},
-                        {name: `products[${index}][igst_rate]`, value: igstRate, class: 'convert-igst-rate'},
-                        {name: `products[${index}][status]`, value: status, class: 'convert-status'}
-                    ];
-
-                    hiddenInputs.forEach(({name, value, class: className}) => {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = name;
-                        input.value = value;
-                        if (className) input.className = className;
-                        convertForm.appendChild(input);
-                    });
+                    $convertForm.append(`
+                        <input type="hidden" name="products[${index}][product_id]" value="${productId}">
+                        <input type="hidden" name="products[${index}][quantity]" class="convert-quantity-input" value="${quantity}">
+                        <input type="hidden" name="products[${index}][unit_price]" class="convert-unit-price" value="${unitPrice}">
+                        <input type="hidden" name="products[${index}][discount]" class="convert-discount-input" value="${discount}">
+                        <input type="hidden" name="products[${index}][cgst_rate]" class="convert-cgst-rate" value="${cgstRate}">
+                        <input type="hidden" name="products[${index}][sgst_rate]" class="convert-sgst-rate" value="${sgstRate}">
+                        <input type="hidden" name="products[${index}][igst_rate]" class="convert-igst-rate" value="${igstRate}">
+                        <input type="hidden" name="products[${index}][status]" class="convert-status" value="${status}">
+                    `);
                 });
 
                 // Update top-level fields
-                const updateField = (name, sourceId) => {
-                    const targetInput = convertForm.querySelector(`input[name="${name}"]`);
-                    const sourceInput = document.getElementById(sourceId);
-                    if (targetInput && sourceInput) {
-                        targetInput.value = sourceInput.value;
-                    }
-                };
-
-                updateField('purchase_order_id', 'purchase_order_id');
-                updateField('receipt_number', 'receipt_number');
-                updateField('receipt_date', 'receipt_date');
-                updateField('invoice_number', 'invoice_number');
-                updateField('invoice_date', 'invoice_date');
-                updateField('discount', 'discount');
-                updateField('note', 'note');
+                $convertForm.find('input[name="purchase_order_id"]').val($('#purchase_order_id').val());
+                $convertForm.find('input[name="receipt_number"]').val($('#receipt_number').val());
+                $convertForm.find('input[name="receipt_date"]').val($('#receipt_date').val());
+                $convertForm.find('input[name="invoice_number"]').val($('#invoice_number').val());
+                $convertForm.find('input[name="invoice_date"]').val($('#invoice_date').val());
+                $convertForm.find('input[name="discount"]').val($('#discount').val());
+                $convertForm.find('input[name="note"]').val($('#note').val());
             }
 
-            // Real-time calculation function - like invoice page
-            function calculateTotals() {
-                let subtotal = 0;
-                let totalDiscount = 0;
-                let totalCgst = 0;
-                let totalSgst = 0;
-                let totalIgst = 0;
 
-                // Get global discount rate
-                const globalDiscountRate = parseFloat(document.getElementById('discount')?.value) || 0;
-
-                // Process each product row
-                document.querySelectorAll('.product-item-row').forEach(row => {
-                    const quantity = parseFloat(row.querySelector('.quantity-input')?.value) || 0;
-                    const unitPrice = parseFloat(row.querySelector('.unit-price')?.value) || 0;
-                    const itemDiscountRate = parseFloat(row.querySelector('.discount-input')?.value) || globalDiscountRate;
-                    const cgstRate = parseFloat(row.querySelector('.cgst-rate')?.value) || 0;
-                    const sgstRate = parseFloat(row.querySelector('.sgst-rate')?.value) || 0;
-                    const igstRate = parseFloat(row.querySelector('.igst-rate')?.value) || 0;
-
-                    if (quantity > 0 && unitPrice >= 0) {
-                        // Calculate base price
-                        const basePrice = quantity * unitPrice;
-                        
-                        // Calculate discount
-                        const discountAmount = basePrice * (itemDiscountRate / 100);
-                        const priceAfterDiscount = basePrice - discountAmount;
-
-                        // Calculate GST
                         const cgstAmount = priceAfterDiscount * (cgstRate / 100);
                         const sgstAmount = priceAfterDiscount * (sgstRate / 100);
                         const igstAmount = priceAfterDiscount * (igstRate / 100);
 
-                        // Add to grand totals
-                        subtotal += priceAfterDiscount;
-                        totalDiscount += discountAmount;
-                        totalCgst += cgstAmount;
-                        totalSgst += sgstAmount;
-                        totalIgst += igstAmount;
-                    }
-                });
 
-                // Calculate grand total
-                const grandTotal = subtotal + totalCgst + totalSgst + totalIgst;
-
-                // Update display elements
-                document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
-                document.getElementById('total_discount').textContent = `₹${totalDiscount.toFixed(2)}`;
-                document.getElementById('total_cgst').textContent = `₹${totalCgst.toFixed(2)}`;
-                document.getElementById('total_sgst').textContent = `₹${totalSgst.toFixed(2)}`;
-                document.getElementById('total_igst').textContent = `₹${totalIgst.toFixed(2)}`;
-                document.getElementById('grand_total').textContent = `₹${grandTotal.toFixed(2)}`;
             }
 
             // Make calculateTotals globally accessible
             window.calculateTotals = calculateTotals;
 
-            // Validate conversion form before submission
-            const convertBtn = document.getElementById('convert-btn');
-            if (convertBtn) {
-                convertBtn.addEventListener('click', function(e) {
-                    let hasInvalidPrices = false;
-                    let invalidRows = [];
-                    
-                    // Check each product row for valid unit prices
-                    document.querySelectorAll('.product-item-row').forEach((row, index) => {
-                        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
-                        const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
-                        
-                        if (quantity > 0 && unitPrice <= 0) {
-                            hasInvalidPrices = true;
-                            invalidRows.push(index + 1);
-                        }
-                    });
-                    
-                    if (hasInvalidPrices) {
-                        e.preventDefault();
-                        alert(`Cannot convert to Purchase Entry!\n\nProducts at row(s) ${invalidRows.join(', ')} have quantity > 0 but unit price is 0 or empty.\n\nPlease enter valid unit prices for all products before conversion.`);
-                        return;
-                    }
-                    
-                    // Update the conversion form and proceed
-                    updateConversionForm();
-                });
-            }
+
 
             // Initialize Select2 for the add product dropdown
-            const addProductSelect = document.getElementById('add_product');
-            if (addProductSelect && window.jQuery) {
-                window.jQuery(addProductSelect).select2({
-                    placeholder: "Select a product...",
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-
-            // Real-time event binding - like invoice page
-            document.addEventListener('input', function(e) {
-                if (e.target.closest('#products-list') || e.target.id === 'discount') {
-                    calculateTotals();
-                    updateConversionForm();
-                }
+            $('#add_product').select2({
+                placeholder: "Select a product...",
+                allowClear: true,
+                width: '100%'
             });
 
-            // Calculate totals on page load
-            calculateTotals();
+            });
+
+            // Also update conversion form on relevant changes
+            $(document).on('input change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #discount, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id', updateConversionForm);
         });
     </script>
 </body>
