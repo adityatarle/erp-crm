@@ -412,58 +412,71 @@
                 $convertForm.find('input[name="note"]').val($('#note').val());
             }
 
-            // Calculate totals - ENHANCED VERSION WITH BETTER DEBUGGING
+            // SIMPLIFIED CALCULATION FUNCTION FOR DEBUGGING
             function calculateTotals() {
-                console.log('🔄 Starting calculateTotals function...'); // Debug log
+                console.log('🔄 === STARTING CALCULATION ===');
                 
-                // Check if required elements exist
-                const subtotalEl = $('#subtotal');
-                const totalDiscountEl = $('#total_discount');
-                const totalCgstEl = $('#total_cgst');
-                const totalSgstEl = $('#total_sgst');
-                const totalIgstEl = $('#total_igst');
-                const grandTotalEl = $('#grand_total');
+                // Test basic jQuery functionality
+                console.log('jQuery version:', $.fn.jquery);
+                console.log('Document ready state:', document.readyState);
                 
-                console.log('📊 Elements found:', {
-                    subtotal: subtotalEl.length,
-                    totalDiscount: totalDiscountEl.length,
-                    totalCgst: totalCgstEl.length,
-                    totalSgst: totalSgstEl.length,
-                    totalIgst: totalIgstEl.length,
-                    grandTotal: grandTotalEl.length
+                // Check if elements exist
+                const subtotalEl = document.getElementById('subtotal');
+                const totalDiscountEl = document.getElementById('total_discount');
+                const totalCgstEl = document.getElementById('total_cgst');
+                const totalSgstEl = document.getElementById('total_sgst');
+                const totalIgstEl = document.getElementById('total_igst');
+                const grandTotalEl = document.getElementById('grand_total');
+                
+                console.log('📊 Elements check (using getElementById):', {
+                    subtotal: subtotalEl ? 'EXISTS' : 'MISSING',
+                    totalDiscount: totalDiscountEl ? 'EXISTS' : 'MISSING',
+                    totalCgst: totalCgstEl ? 'EXISTS' : 'MISSING',
+                    totalSgst: totalSgstEl ? 'EXISTS' : 'MISSING',
+                    totalIgst: totalIgstEl ? 'EXISTS' : 'MISSING',
+                    grandTotal: grandTotalEl ? 'EXISTS' : 'MISSING'
                 });
                 
-                if (subtotalEl.length === 0) {
-                    console.error('❌ Subtotal element not found!');
+                if (!subtotalEl) {
+                    console.error('❌ CRITICAL: Subtotal element not found!');
+                    console.log('Available elements with IDs:', Array.from(document.querySelectorAll('[id]')).map(el => el.id));
                     return;
                 }
                 
+                // Initialize totals
                 let grandSubtotal = 0;
                 let grandTotalDiscount = 0;
                 let grandTotalCgst = 0;
                 let grandTotalSgst = 0;
                 let grandTotalIgst = 0;
 
-                const discountRate = parseFloat($('#discount').val()) || 0;
-                console.log('💰 Global discount rate:', discountRate); // Debug log
+                // Get global discount
+                const discountEl = document.getElementById('discount');
+                const discountRate = discountEl ? parseFloat(discountEl.value) || 0 : 0;
+                console.log('💰 Global discount rate:', discountRate);
 
-                const productRows = $('.product-item-row');
+                // Find product rows
+                const productRows = document.querySelectorAll('.product-item-row');
                 console.log('📦 Found product rows:', productRows.length);
 
-                productRows.each(function(index) {
-                    const $row = $(this);
-                    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
-                    const unitPrice = parseFloat($row.find('.unit-price').val()) || 0;
+                // Process each row
+                productRows.forEach((row, index) => {
+                    const quantityInput = row.querySelector('.quantity-input');
+                    const unitPriceInput = row.querySelector('.unit-price');
+                    const discountInput = row.querySelector('.discount-input');
+                    const cgstInput = row.querySelector('.cgst-rate');
+                    const sgstInput = row.querySelector('.sgst-rate');
+                    const igstInput = row.querySelector('.igst-rate');
                     
-                    // Check for item-specific discount first, then global discount
-                    const itemDiscount = parseFloat($row.find('.discount-input').val());
-                    const effectiveDiscountRate = !isNaN(itemDiscount) && itemDiscount !== '' ? itemDiscount : discountRate;
-                    
-                    const cgstRate = parseFloat($row.find('.cgst-rate').val()) || 0;
-                    const sgstRate = parseFloat($row.find('.sgst-rate').val()) || 0;
-                    const igstRate = parseFloat($row.find('.igst-rate').val()) || 0;
+                    const quantity = quantityInput ? parseFloat(quantityInput.value) || 0 : 0;
+                    const unitPrice = unitPriceInput ? parseFloat(unitPriceInput.value) || 0 : 0;
+                    const itemDiscount = discountInput ? parseFloat(discountInput.value) : null;
+                    const effectiveDiscountRate = (itemDiscount !== null && !isNaN(itemDiscount)) ? itemDiscount : discountRate;
+                    const cgstRate = cgstInput ? parseFloat(cgstInput.value) || 0 : 0;
+                    const sgstRate = sgstInput ? parseFloat(sgstInput.value) || 0 : 0;
+                    const igstRate = igstInput ? parseFloat(igstInput.value) || 0 : 0;
 
-                    console.log(`📋 Row ${index}:`, {quantity, unitPrice, effectiveDiscountRate, cgstRate, sgstRate, igstRate}); // Debug log
+                    console.log(`📋 Row ${index}:`, {quantity, unitPrice, effectiveDiscountRate, cgstRate, sgstRate, igstRate});
 
                     if (quantity > 0 && unitPrice > 0) {
                         const basePrice = quantity * unitPrice;
@@ -487,7 +500,7 @@
                             cgstAmount: cgstAmount.toFixed(2), 
                             sgstAmount: sgstAmount.toFixed(2), 
                             igstAmount: igstAmount.toFixed(2)
-                        }); // Debug log
+                        });
                     } else {
                         console.log(`⚠️ Row ${index} skipped: quantity=${quantity}, unitPrice=${unitPrice}`);
                     }
@@ -502,35 +515,57 @@
                     grandTotalSgst: grandTotalSgst.toFixed(2), 
                     grandTotalIgst: grandTotalIgst.toFixed(2), 
                     grandTotal: grandTotal.toFixed(2)
-                }); // Debug log
+                });
 
-                // Update the display elements
+                // Update the display elements using plain JavaScript
                 try {
-                    subtotalEl.text('₹' + grandSubtotal.toFixed(2));
-                    totalDiscountEl.text('₹' + grandTotalDiscount.toFixed(2));
-                    totalCgstEl.text('₹' + grandTotalCgst.toFixed(2));
-                    totalSgstEl.text('₹' + grandTotalSgst.toFixed(2));
-                    totalIgstEl.text('₹' + grandTotalIgst.toFixed(2));
-                    grandTotalEl.text('₹' + grandTotal.toFixed(2));
+                    if (subtotalEl) subtotalEl.textContent = '₹' + grandSubtotal.toFixed(2);
+                    if (totalDiscountEl) totalDiscountEl.textContent = '₹' + grandTotalDiscount.toFixed(2);
+                    if (totalCgstEl) totalCgstEl.textContent = '₹' + grandTotalCgst.toFixed(2);
+                    if (totalSgstEl) totalSgstEl.textContent = '₹' + grandTotalSgst.toFixed(2);
+                    if (totalIgstEl) totalIgstEl.textContent = '₹' + grandTotalIgst.toFixed(2);
+                    if (grandTotalEl) grandTotalEl.textContent = '₹' + grandTotal.toFixed(2);
                     
                     console.log('✅ Successfully updated all total display elements');
                 } catch (error) {
                     console.error('❌ Error updating display elements:', error);
                 }
+                
+                console.log('🔄 === CALCULATION COMPLETE ===');
             }
 
             // Make calculateTotals globally accessible for the manual button
             window.calculateTotals = calculateTotals;
 
-            // Validate conversion form before submission - SIMPLIFIED
+            // Validate conversion form before submission - WITH UNIT PRICE CHECK
             $('#convert-btn').on('click', function(e) {
-                console.log('🔄 Convert button clicked...');
+                console.log('🔄 Convert button clicked, checking unit prices...');
                 
-                // Just update the conversion form and proceed
-                // Backend will handle validation and auto-generation
+                let hasInvalidPrices = false;
+                let invalidRows = [];
+                
+                // Check each product row for valid unit prices
+                $('.product-item-row').each(function(index) {
+                    const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
+                    const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
+                    
+                    if (quantity > 0 && unitPrice <= 0) {
+                        hasInvalidPrices = true;
+                        invalidRows.push(index + 1);
+                    }
+                });
+                
+                if (hasInvalidPrices) {
+                    e.preventDefault();
+                    alert(`Cannot convert to Purchase Entry!\n\nProducts at row(s) ${invalidRows.join(', ')} have quantity > 0 but unit price is 0 or empty.\n\nPlease enter valid unit prices for all products before conversion.`);
+                    console.log('❌ Conversion blocked - invalid unit prices at rows:', invalidRows);
+                    return;
+                }
+                
+                // Update the conversion form and proceed
                 updateConversionForm();
                 
-                console.log('✅ Proceeding with conversion...');
+                console.log('✅ Unit price validation passed, proceeding with conversion...');
             });
 
 
@@ -548,10 +583,16 @@
                 calculateTotals();
             }, 100); // Small delay to ensure all elements are ready
 
-            // Update totals on input change - IMPROVED EVENT BINDING
+            // SIMPLIFIED EVENT BINDING FOR CALCULATIONS
             $(document).on('input change keyup', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, #discount', function() {
-                console.log('Input changed:', $(this).attr('name'), '=', $(this).val()); // Debug log
-                calculateTotals();
+                console.log('🔄 Input changed:', $(this).attr('class'), '=', $(this).val());
+                setTimeout(calculateTotals, 50); // Small delay to ensure value is updated
+            });
+
+            // Bind to discount field specifically
+            $('#discount').on('input change keyup', function() {
+                console.log('🔄 Global discount changed:', $(this).val());
+                setTimeout(calculateTotals, 50);
             });
 
             // Also update conversion form on relevant changes
