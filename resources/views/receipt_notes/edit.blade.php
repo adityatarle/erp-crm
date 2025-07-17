@@ -248,41 +248,28 @@
                             </div>
                         </div>
 
-                        <div class="mt-4 text-end">
-                            <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Update Receipt Note</button>
-                            @if(!$receiptNote->is_converted)
-                                <button type="submit" class="btn btn-success btn-lg ml-2" id="update-and-convert-btn" name="convert_to_purchase_entry" value="1">Update & Convert to Purchase Entry</button>
-                            @endif
+                        <div class="mt-4">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2">Update Receipt Note</h6>
+                                    <p class="small text-muted">Save changes to this receipt note without converting it.</p>
+                                    <button type="submit" class="btn btn-primary btn-lg w-100" id="submit-btn">Update Receipt Note</button>
+                                </div>
+                                @if(!$receiptNote->is_converted)
+                                <div class="col-md-6">
+                                    <h6 class="text-muted mb-2">Convert to Purchase Entry</h6>
+                                    <p class="small text-muted">Update and convert this receipt note to a purchase entry (requires invoice details).</p>
+                                    <button type="submit" class="btn btn-success btn-lg w-100" id="update-and-convert-btn" name="convert_to_purchase_entry" value="1">Update & Convert to Purchase Entry</button>
+                                </div>
+                                @else
+                                <div class="col-md-6">
+                                    <h6 class="text-success mb-2">Already Converted</h6>
+                                    <p class="small text-muted">This receipt note has been converted to a purchase entry.</p>
+                                    <button type="button" class="btn btn-secondary btn-lg w-100" disabled>Already Converted</button>
+                                </div>
+                                @endif
+                            </div>
                         </div>
-                    </form>
-
-                    <!-- Conversion Form -->
-                    <form action="{{ route('receipt_notes.convert', $receiptNote->id) }}" method="POST" id="convert-receipt-note-form" class="d-inline">
-                        @csrf
-                        @method('POST')
-                        <input type="hidden" name="purchase_order_id" id="convert_purchase_order_id" value="{{ $receiptNote->purchase_order_id }}">
-                        <input type="hidden" name="party_id" id="convert_party_id" value="{{ $receiptNote->party_id }}">
-                        <input type="hidden" name="invoice_number" id="convert_invoice_number" value="{{ old('invoice_number', $receiptNote->invoice_number) }}">
-                        <input type="hidden" name="invoice_date" id="convert_invoice_date" value="{{ old('invoice_date', $receiptNote->invoice_date) }}">
-                        <input type="hidden" name="receipt_number" id="convert_receipt_number" value="{{ old('receipt_number', $receiptNote->receipt_number) }}">
-                        <input type="hidden" name="receipt_date" id="convert_receipt_date" value="{{ old('receipt_date', $receiptNote->receipt_date) }}">
-                        <input type="hidden" name="note" id="convert_note" value="{{ old('note', $receiptNote->note) }}">
-                        <input type="hidden" name="discount" id="convert_discount" value="{{ old('discount', $receiptNote->discount) }}">
-                        @foreach($receiptNote->items as $index => $item)
-                        <input type="hidden" name="products[{{ $index }}][product_id]" value="{{ $item->product_id }}">
-                        <input type="hidden" name="products[{{ $index }}][quantity]" class="convert-quantity-input" value="{{ old('products.' . $index . '.quantity', $item->quantity) }}">
-                        <input type="hidden" name="products[{{ $index }}][unit_price]" class="convert-unit-price" value="{{ old('products.' . $index . '.unit_price', $item->unit_price) }}">
-                        <input type="hidden" name="products[{{ $index }}][discount]" class="convert-discount-input" value="{{ old('products.' . $index . '.discount', $item->discount ?? $receiptNote->discount) }}">
-                        <input type="hidden" name="products[{{ $index }}][cgst_rate]" class="convert-cgst-rate" value="{{ old('products.' . $index . '.cgst_rate', $item->cgst_rate) }}">
-                        <input type="hidden" name="products[{{ $index }}][sgst_rate]" class="convert-sgst-rate" value="{{ old('products.' . $index . '.sgst_rate', $item->sgst_rate) }}">
-                        <input type="hidden" name="products[{{ $index }}][igst_rate]" class="convert-igst-rate" value="{{ old('products.' . $index . '.igst_rate', $item->igst_rate) }}">
-                        <input type="hidden" name="products[{{ $index }}][status]" class="convert-status" value="{{ $item->status }}">
-                        @endforeach
-                        @if($receiptNote->is_converted)
-                            <button type="button" class="btn btn-secondary btn-lg" disabled>Already Converted to Purchase Entry</button>
-                        @else
-                            <button type="submit" class="btn btn-success btn-lg" id="convert-btn">Convert to Purchase Entry</button>
-                        @endif
                     </form>
                 </div>
             </div>
@@ -338,7 +325,6 @@
                 productsHeader.css('display', 'grid');
                 productIndex++;
                 $(this).val(''); // Reset select
-                updateConversionForm();
                 calculateTotals();
             });
 
@@ -349,7 +335,6 @@
                     productsList.html('<p class="text-muted text-center p-4 border rounded">No products added.</p>');
                     productsHeader.hide();
                 }
-                updateConversionForm();
                 calculateTotals();
             });
 
@@ -365,47 +350,8 @@
                     $input.parent().append($warning);
                     setTimeout(() => $warning.remove(), 2000);
                 }
-                updateConversionForm();
                 calculateTotals();
             });
-
-            // Update conversion form inputs
-            function updateConversionForm() {
-                const $convertForm = $('#convert-receipt-note-form');
-                $convertForm.find('input[name^="products"]').remove(); // Clear existing product inputs
-
-                $('.product-item-row').each(function(index) {
-                    const $row = $(this);
-                    const productId = $row.find('input[name$="[product_id]"]').val();
-                    const quantity = $row.find('.quantity-input').val();
-                    const unitPrice = $row.find('.unit-price').val();
-                    const discount = $row.find('.discount-input').val();
-                    const cgstRate = $row.find('.cgst-rate').val();
-                    const sgstRate = $row.find('.sgst-rate').val();
-                    const igstRate = $row.find('.igst-rate').val();
-                    const status = $row.find('.status-select').val();
-
-                    $convertForm.append(`
-                        <input type="hidden" name="products[${index}][product_id]" value="${productId}">
-                        <input type="hidden" name="products[${index}][quantity]" class="convert-quantity-input" value="${quantity}">
-                        <input type="hidden" name="products[${index}][unit_price]" class="convert-unit-price" value="${unitPrice}">
-                        <input type="hidden" name="products[${index}][discount]" class="convert-discount-input" value="${discount}">
-                        <input type="hidden" name="products[${index}][cgst_rate]" class="convert-cgst-rate" value="${cgstRate}">
-                        <input type="hidden" name="products[${index}][sgst_rate]" class="convert-sgst-rate" value="${sgstRate}">
-                        <input type="hidden" name="products[${index}][igst_rate]" class="convert-igst-rate" value="${igstRate}">
-                        <input type="hidden" name="products[${index}][status]" class="convert-status" value="${status}">
-                    `);
-                });
-
-                // Update top-level fields using IDs
-                $('#convert_purchase_order_id').val($('#purchase_order_id').val());
-                $('#convert_receipt_number').val($('#receipt_number').val());
-                $('#convert_receipt_date').val($('#receipt_date').val());
-                $('#convert_invoice_number').val($('#invoice_number').val());
-                $('#convert_invoice_date').val($('#invoice_date').val());
-                $('#convert_discount').val($('#discount').val());
-                $('#convert_note').val($('#note').val());
-            }
 
             // Calculate totals
             function calculateTotals() {
@@ -486,85 +432,7 @@
                 return confirm('Are you sure you want to update and convert this receipt note to a purchase entry? This action cannot be undone.');
             });
 
-            // Validate conversion form before submission
-            $('#convert-btn').on('click', function(e) {
-                e.preventDefault(); // Prevent default submission
-                
-                const invoiceNumber = $('#invoice_number').val().trim();
-                const invoiceDate = $('#invoice_date').val().trim();
-
-                console.log('Conversion validation - Invoice Number:', invoiceNumber, 'Invoice Date:', invoiceDate);
-
-                if (!invoiceNumber || !invoiceDate) {
-                    alert('Please fill in Invoice Number and Invoice Date before converting to a purchase entry.');
-                    // Focus on the first empty field
-                    if (!invoiceNumber) {
-                        $('#invoice_number').focus();
-                    } else if (!invoiceDate) {
-                        $('#invoice_date').focus();
-                    }
-                    return false;
-                }
-
-                // Check if all products have required pricing information
-                let hasValidProducts = false;
-                let missingPriceProducts = [];
-                
-                $('.product-item-row').each(function() {
-                    const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
-                    const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
-                    const productName = $(this).find('select[name$="[product_id]"] option:selected').text();
-                    
-                    if (quantity > 0) {
-                        hasValidProducts = true;
-                        if (unitPrice <= 0) {
-                            missingPriceProducts.push(productName);
-                        }
-                    }
-                });
-
-                if (!hasValidProducts) {
-                    alert('Please add at least one product with a valid quantity.');
-                    return false;
-                }
-
-                if (missingPriceProducts.length > 0) {
-                    alert('Please add unit prices for the following products: ' + missingPriceProducts.join(', '));
-                    return false;
-                }
-
-                // Instead of relying on hidden form synchronization, 
-                // let's directly set the values right before submission
-                $('#convert_invoice_number').val(invoiceNumber);
-                $('#convert_invoice_date').val(invoiceDate);
-                $('#convert_purchase_order_id').val($('#purchase_order_id').val());
-                $('#convert_receipt_number').val($('#receipt_number').val());
-                $('#convert_receipt_date').val($('#receipt_date').val());
-                $('#convert_discount').val($('#discount').val());
-                $('#convert_note').val($('#note').val());
-
-                // Update product information
-                updateConversionForm();
-
-                // Log final values for debugging
-                console.log('Final hidden form values:');
-                console.log('Invoice Number:', $('#convert_invoice_number').val());
-                console.log('Invoice Date:', $('#convert_invoice_date').val());
-
-                // Show confirmation dialog
-                if (confirm('Are you sure you want to convert this receipt note to a purchase entry? This action cannot be undone.')) {
-                    // Submit the form
-                    $('#convert-receipt-note-form')[0].submit();
-                }
-
-                return false;
-            });
-
-            // Update conversion form on input change
-            $(document).on('input', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, #discount, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id', updateConversionForm);
-
             // Trigger initial updates
-            updateConversionForm();
             calculateTotals();
 
             // Update totals on input change
