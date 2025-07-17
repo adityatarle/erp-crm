@@ -17,6 +17,7 @@ class ReceiptNote extends Model
         'invoice_date',
         'gst_amount',
         'discount',
+        'is_converted',
         'created_at',
         'updated_at',
     ];

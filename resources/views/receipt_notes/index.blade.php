@@ -45,9 +45,9 @@
                                     <td>{{ number_format($note->items->sum('total_price'), 2) }}</td>
                                     <td class="d-flex gap-1">
                                         <a href="{{ route('receipt_notes.edit', $note->id) }}" class="btn btn-sm btn-warning">Edit</a>
-                                        <!-- <button class="btn btn-sm btn-primary" data-toggle="modal"
-                                                data-target="#convertModal{{ $note->id }}">Convert to Purchase
-                                                Entry</button> -->
+                                        @if(empty($note->is_converted) || !$note->is_converted)
+                                            <a href="{{ route('receipt_notes.convert', $note->id) }}" class="btn btn-sm btn-success">Convert to Purchase Entry</a>
+                                        @endif
                                         <a href="{{ route('receipt_notes.pdf', $note->id) }}" class="btn btn-sm btn-danger" target="_blank">
                                             <i class="fa fa-file-pdf"></i> PDF
                                         </a>

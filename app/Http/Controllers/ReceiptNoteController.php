@@ -462,6 +462,125 @@ class ReceiptNoteController extends Controller
         }
     }
 
+    /**
+     * Show the form to convert a Receipt Note to a Purchase Entry.
+     */
+    public function convert($id)
+    {
+        $receiptNote = ReceiptNote::with('items.product', 'party')->findOrFail($id);
+        if ($receiptNote->is_converted) {
+            return redirect()->route('receipt_notes.index')->with('error', 'This receipt note has already been converted.');
+        }
+        $purchaseOrders = PurchaseOrder::where('party_id', $receiptNote->party_id)->get();
+        return view('receipt_notes.convert', compact('receiptNote', 'purchaseOrders'));
+    }
+
+    /**
+     * Store the conversion of a Receipt Note to a Purchase Entry.
+     */
+    public function storeConversion(Request $request, $id)
+    {
+        $request->validate([
+            'invoice_number' => 'required|string|unique:purchase_entries,invoice_number',
+            'invoice_date' => 'required|date',
+            'purchase_order_id' => 'nullable|exists:purchase_orders,id',
+            'products' => 'required|array|min:1',
+            'products.*.product_id' => 'required|exists:products,id',
+            'products.*.quantity' => 'required|numeric|min:0',
+            'products.*.unit_price' => 'required|numeric|min:0',
+            'products.*.discount' => 'nullable|numeric|min:0|max:100',
+            'products.*.cgst_rate' => 'nullable|numeric|min:0|max:100',
+            'products.*.sgst_rate' => 'nullable|numeric|min:0|max:100',
+            'products.*.igst_rate' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        try {
+            return DB::transaction(function () use ($request, $id) {
+                $receiptNote = ReceiptNote::with('items')->findOrFail($id);
+                if ($receiptNote->is_converted) {
+                    return redirect()->route('receipt_notes.index')->with('error', 'This receipt note has already been converted.');
+                }
+
+                $receivedProducts = array_filter($request->products, fn($product) => $product['quantity'] > 0);
+                if (empty($receivedProducts)) {
+                    return redirect()->back()->with('error', 'No products with valid quantities to convert.');
+                }
+
+                $discountRate = $request->discount ?? $receiptNote->discount ?? 0;
+                $totalAmount = 0;
+                $totalDiscount = 0;
+                $totalGstAmount = 0;
+
+                $purchaseEntry = PurchaseEntry::create([
+                    'purchase_number' => 'PE-' . Str::random(8),
+                    'purchase_order_id' => $request->purchase_order_id ?? $receiptNote->purchase_order_id,
+                    'purchase_date' => $receiptNote->receipt_date,
+                    'invoice_number' => $request->invoice_number,
+                    'invoice_date' => $request->invoice_date,
+                    'party_id' => $receiptNote->party_id,
+                    'note' => $receiptNote->note,
+                    'gst_amount' => 0, // Will be updated
+                    'discount' => $discountRate,
+                ]);
+
+                foreach ($receivedProducts as $item) {
+                    $basePrice = $item['quantity'] * $item['unit_price'];
+                    $discountAmount = $basePrice * ($discountRate / 100);
+                    $priceAfterDiscount = $basePrice - $discountAmount;
+
+                    $cgstRate = $item['cgst_rate'] ?? 0;
+                    $sgstRate = $item['sgst_rate'] ?? 0;
+                    $igstRate = $item['igst_rate'] ?? 0;
+
+                    $cgstAmount = $priceAfterDiscount * ($cgstRate / 100);
+                    $sgstAmount = $priceAfterDiscount * ($sgstRate / 100);
+                    $igstAmount = $priceAfterDiscount * ($igstRate / 100);
+                    $totalPrice = $priceAfterDiscount + $cgstAmount + $sgstAmount + $igstAmount;
+
+                    PurchaseEntryItem::create([
+                        'purchase_entry_id' => $purchaseEntry->id,
+                        'product_id' => $item['product_id'],
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'discount' => $discountRate,
+                        'total_price' => $totalPrice,
+                        'cgst_rate' => $cgstRate,
+                        'sgst_rate' => $sgstRate,
+                        'igst_rate' => $igstRate,
+                        'status' => 'received',
+                    ]);
+
+                    $totalAmount += $totalPrice;
+                    $totalDiscount += $discountAmount;
+                    $totalGstAmount += ($cgstAmount + $sgstAmount + $igstAmount);
+                }
+
+                $purchaseEntry->update([
+                    'gst_amount' => $totalGstAmount,
+                    'discount' => $totalDiscount,
+                ]);
+
+                Payable::create([
+                    'purchase_entry_id' => $purchaseEntry->id,
+                    'party_id' => $receiptNote->party_id,
+                    'amount' => $totalAmount,
+                    'is_paid' => false,
+                ]);
+
+                // Mark the receipt note as converted
+                $receiptNote->is_converted = true;
+                $receiptNote->invoice_number = $request->invoice_number;
+                $receiptNote->invoice_date = $request->invoice_date;
+                $receiptNote->save();
+
+                return redirect()->route('purchase_entries.show', $purchaseEntry->id)
+                    ->with('success', 'Receipt Note converted to Purchase Entry!');
+            });
+        } catch (\Exception $e) {
+            return redirect()->back()->withErrors(['error' => 'An error occurred while converting the receipt note.']);
+        }
+    }
+
     public function edit(ReceiptNote $receiptNote)
     {
         // Eager-load the relationships for the receipt note itself
