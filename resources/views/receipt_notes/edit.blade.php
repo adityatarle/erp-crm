@@ -73,8 +73,6 @@
             font-weight: bold;
         }
 
-
-
         @media (max-width: 1200px) {
             .products-header {
                 display: none;
@@ -341,11 +339,10 @@
                     productsHeader.style.display = 'grid';
                     productIndex++;
                     this.value = ''; // Reset select
-                    // Note: updateConversionForm and calculateTotals will be called by global event listener
                 });
             }
 
-            // Remove product row and quantity validation - converted to vanilla JS
+            // Remove product row
             productsList.addEventListener('click', function(e) {
                 if (e.target.closest('.remove-item-btn')) {
                     e.target.closest('.product-item-row').remove();
@@ -353,13 +350,12 @@
                         productsList.innerHTML = '<p class="text-muted text-center p-4 border rounded">No products added.</p>';
                         productsHeader.style.display = 'none';
                     }
-                    // Manually trigger update since this is a remove action, not an input event
                     updateConversionForm();
                     calculateTotals();
                 }
             });
 
-            // Quantity validation only - calculation handled by global event listener
+            // Quantity validation
             productsList.addEventListener('input', function(e) {
                 if (e.target.classList.contains('quantity-input')) {
                     const input = e.target;
@@ -374,7 +370,6 @@
                         input.parentElement.appendChild(warning);
                         setTimeout(() => warning.remove(), 2000);
                     }
-                    // Note: calculateTotals and updateConversionForm are called by global listener below
                 }
             });
 
@@ -436,60 +431,64 @@
                 updateField('note', 'note');
             }
 
+            // Real-time calculation function - like invoice page
             function calculateTotals() {
                 let subtotal = 0;
-                
-                // Simple calculation like invoice page
+                let totalDiscount = 0;
+                let totalCgst = 0;
+                let totalSgst = 0;
+                let totalIgst = 0;
+
+                // Get global discount rate
+                const globalDiscountRate = parseFloat(document.getElementById('discount')?.value) || 0;
+
+                // Process each product row
                 document.querySelectorAll('.product-item-row').forEach(row => {
                     const quantity = parseFloat(row.querySelector('.quantity-input')?.value) || 0;
                     const unitPrice = parseFloat(row.querySelector('.unit-price')?.value) || 0;
-                    const discount = parseFloat(row.querySelector('.discount-input')?.value) || 0;
-                    
+                    const itemDiscountRate = parseFloat(row.querySelector('.discount-input')?.value) || globalDiscountRate;
+                    const cgstRate = parseFloat(row.querySelector('.cgst-rate')?.value) || 0;
+                    const sgstRate = parseFloat(row.querySelector('.sgst-rate')?.value) || 0;
+                    const igstRate = parseFloat(row.querySelector('.igst-rate')?.value) || 0;
+
                     if (quantity > 0 && unitPrice >= 0) {
-                        const lineTotal = quantity * unitPrice;
-                        const discountAmount = lineTotal * (discount / 100);
-                        subtotal += lineTotal - discountAmount;
+                        // Calculate base price
+                        const basePrice = quantity * unitPrice;
+                        
+                        // Calculate discount
+                        const discountAmount = basePrice * (itemDiscountRate / 100);
+                        const priceAfterDiscount = basePrice - discountAmount;
+
+                        // Calculate GST
+                        const cgstAmount = priceAfterDiscount * (cgstRate / 100);
+                        const sgstAmount = priceAfterDiscount * (sgstRate / 100);
+                        const igstAmount = priceAfterDiscount * (igstRate / 100);
+
+                        // Add to grand totals
+                        subtotal += priceAfterDiscount;
+                        totalDiscount += discountAmount;
+                        totalCgst += cgstAmount;
+                        totalSgst += sgstAmount;
+                        totalIgst += igstAmount;
                     }
                 });
 
-                // Global discount
-                const globalDiscount = parseFloat(document.getElementById('discount')?.value) || 0;
-                const globalDiscountAmount = subtotal * (globalDiscount / 100);
-                const finalSubtotal = subtotal - globalDiscountAmount;
-
-                // Calculate total tax (simplified)
-                let totalTax = 0;
-                document.querySelectorAll('.product-item-row').forEach(row => {
-                    const quantity = parseFloat(row.querySelector('.quantity-input')?.value) || 0;
-                    const unitPrice = parseFloat(row.querySelector('.unit-price')?.value) || 0;
-                    const discount = parseFloat(row.querySelector('.discount-input')?.value) || 0;
-                    const cgst = parseFloat(row.querySelector('.cgst-rate')?.value) || 0;
-                    const sgst = parseFloat(row.querySelector('.sgst-rate')?.value) || 0;
-                    const igst = parseFloat(row.querySelector('.igst-rate')?.value) || 0;
-                    
-                    if (quantity > 0 && unitPrice >= 0) {
-                        const lineTotal = quantity * unitPrice;
-                        const discountAmount = lineTotal * (discount / 100);
-                        const lineSubtotal = lineTotal - discountAmount;
-                        totalTax += lineSubtotal * ((cgst + sgst + igst) / 100);
-                    }
-                });
-
-                const grandTotal = finalSubtotal + totalTax;
+                // Calculate grand total
+                const grandTotal = subtotal + totalCgst + totalSgst + totalIgst;
 
                 // Update display elements
-                document.getElementById('subtotal').textContent = `₹${finalSubtotal.toFixed(2)}`;
-                document.getElementById('total_discount').textContent = `₹${globalDiscountAmount.toFixed(2)}`;
-                document.getElementById('total_cgst').textContent = `₹0.00`;
-                document.getElementById('total_sgst').textContent = `₹0.00`;
-                document.getElementById('total_igst').textContent = `₹${totalTax.toFixed(2)}`;
+                document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+                document.getElementById('total_discount').textContent = `₹${totalDiscount.toFixed(2)}`;
+                document.getElementById('total_cgst').textContent = `₹${totalCgst.toFixed(2)}`;
+                document.getElementById('total_sgst').textContent = `₹${totalSgst.toFixed(2)}`;
+                document.getElementById('total_igst').textContent = `₹${totalIgst.toFixed(2)}`;
                 document.getElementById('grand_total').textContent = `₹${grandTotal.toFixed(2)}`;
             }
 
-            // Make calculateTotals globally accessible for the manual button
+            // Make calculateTotals globally accessible
             window.calculateTotals = calculateTotals;
 
-            // Validate conversion form before submission - WITH UNIT PRICE CHECK
+            // Validate conversion form before submission
             const convertBtn = document.getElementById('convert-btn');
             if (convertBtn) {
                 convertBtn.addEventListener('click', function(e) {
@@ -528,7 +527,7 @@
                 });
             }
 
-            // Real-time event binding like invoice page
+            // Real-time event binding - like invoice page
             document.addEventListener('input', function(e) {
                 if (e.target.closest('#products-list') || e.target.id === 'discount') {
                     calculateTotals();
