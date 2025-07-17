@@ -211,6 +211,13 @@ class ReceiptNoteController extends Controller
                 Log::info('Starting convertToPurchaseEntry', ['receipt_note_id' => $id]);
 
                 $receiptNote = ReceiptNote::with('items')->findOrFail($id);
+                
+                // Check if already converted
+                if ($receiptNote->is_converted) {
+                    Log::warning('Receipt note already converted', ['receipt_note_id' => $id]);
+                    return redirect()->back()->with('error', 'This receipt note has already been converted to a purchase entry.');
+                }
+                
                 Log::info('Receipt note loaded', ['receipt_note_id' => $receiptNote->id]);
 
                 $receivedProducts = array_filter($request->products, fn($product) => $product['quantity'] > 0);
@@ -325,16 +332,19 @@ class ReceiptNoteController extends Controller
                     }
                 }
 
-                $receiptNote->items()->delete();
-                Log::info('Receipt note items deleted', ['receipt_note_id' => $receiptNote->id]);
-                $receiptNote->delete();
-                Log::info('Receipt note deleted', ['id' => $id]);
+                // Mark receipt note as converted before deleting items
+                $receiptNote->update(['is_converted' => true]);
+                Log::info('Receipt note marked as converted', ['receipt_note_id' => $receiptNote->id]);
+
+                // Don't delete the receipt note and items - just mark as converted
+                // This preserves the audit trail
+                Log::info('Receipt note conversion completed successfully', ['receipt_note_id' => $receiptNote->id, 'purchase_entry_id' => $purchaseEntry->id]);
 
                 return redirect()->route('purchase_entries.index')->with('success', 'Receipt note converted to purchase entry successfully.');
             });
         } catch (\Exception $e) {
             Log::error('Conversion failed', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return redirect()->back()->withErrors(['error' => 'An error occurred while converting the receipt note. Check logs for details.']);
+            return redirect()->back()->withErrors(['error' => 'An error occurred while converting the receipt note: ' . $e->getMessage()]);
         }
     }
 

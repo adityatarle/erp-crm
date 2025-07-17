@@ -10,7 +10,8 @@ class PurchaseEntry extends Model
         'discount',
         'cgst',
         'sgst',
-        'igst',];
+        'igst',
+        'from_receipt_note',];
 
     public function party()
     {
