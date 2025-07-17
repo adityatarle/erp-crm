@@ -198,7 +198,7 @@ class ReceiptNoteController extends Controller
         $invoiceNumber = $request->invoice_number;
         $invoiceDate = $request->invoice_date;
         
-        // Check if financial details are missing for business validation
+        // STRICT FINANCIAL VALIDATION - Prevent conversion without proper financial details
         $missingFinancialDetails = [];
         
         // Check if invoice details are missing
@@ -220,7 +220,7 @@ class ReceiptNoteController extends Controller
             if ($quantity > 0) {
                 $hasValidProducts = true;
                 if ($unitPrice <= 0) {
-                    $missingFinancialDetails[] = "Unit Price for product at row " . ($index + 1);
+                    $missingFinancialDetails[] = "Unit Price for product at row " . ($index + 1) . " (cannot be 0 or empty)";
                 }
             }
         }
@@ -229,23 +229,26 @@ class ReceiptNoteController extends Controller
             $missingFinancialDetails[] = 'At least one product with quantity > 0';
         }
         
-        // Only show validation error if there are actual missing details
-        // For now, let's be less strict and just warn, but still allow conversion with auto-generation
+        // STRICT VALIDATION: Block conversion if financial details are missing
         if (!empty($missingFinancialDetails)) {
-            Log::warning('Converting receipt note with missing financial details', [
+            Log::error('Conversion blocked due to missing financial details', [
                 'receipt_note_id' => $id,
                 'missing_details' => $missingFinancialDetails
             ]);
             
-            // Auto-generate missing invoice details
-            if (empty($invoiceNumber)) {
-                do {
-                    $invoiceNumber = 'INV-' . $receiptNote->receipt_number . '-' . date('Ymd') . '-' . strtoupper(Str::random(4));
-                } while (PurchaseEntry::where('invoice_number', $invoiceNumber)->exists());
-            }
-            if (empty($invoiceDate)) {
-                $invoiceDate = $receiptNote->receipt_date;
-            }
+            return redirect()->back()->withErrors([
+                'financial_validation' => 'Cannot convert to Purchase Entry without complete financial details. Missing: ' . implode(', ', $missingFinancialDetails) . '. Please fill in all invoice details and ensure all unit prices are greater than 0.'
+            ])->withInput();
+        }
+        
+        // Auto-generate invoice details only if they're missing but other details are complete
+        if (empty($invoiceNumber)) {
+            do {
+                $invoiceNumber = 'INV-' . $receiptNote->receipt_number . '-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+            } while (PurchaseEntry::where('invoice_number', $invoiceNumber)->exists());
+        }
+        if (empty($invoiceDate)) {
+            $invoiceDate = $receiptNote->receipt_date;
         }
         
         // Update request with values
@@ -261,7 +264,7 @@ class ReceiptNoteController extends Controller
             'products' => 'required|array|min:1',
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
-            'products.*.unit_price' => 'required|numeric|min:0', // Allow zero unit price for now
+            'products.*.unit_price' => 'required|numeric|min:0.01', // Unit price must be greater than 0
             'products.*.discount' => 'nullable|numeric|min:0|max:100',
             'products.*.cgst_rate' => 'nullable|numeric|min:0|max:100',
             'products.*.sgst_rate' => 'nullable|numeric|min:0|max:100',
