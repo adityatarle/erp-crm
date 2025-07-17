@@ -73,24 +73,7 @@
             font-weight: bold;
         }
 
-        /* Real-time update animation */
-        .totals-card {
-            transition: all 0.3s ease;
-        }
-        
-        .totals-card.updated {
-            transform: scale(1.02);
-            box-shadow: 0 4px 8px rgba(0,123,255,0.3);
-            border-color: #007bff;
-        }
-        
-        .totals-card .row div[id] {
-            transition: color 0.2s ease;
-        }
-        
-        .totals-card.updated .row div[id] {
-            color: #007bff !important;
-        }
+
 
         @media (max-width: 1200px) {
             .products-header {
@@ -309,24 +292,28 @@
     </div>
 
     <script>
-        $(document).ready(function() {
-            const productsList = $('#products-list');
-            const productsHeader = $('.products-header');
+        document.addEventListener('DOMContentLoaded', function() {
+            const productsList = document.getElementById('products-list');
+            const productsHeader = document.querySelector('.products-header');
             let productIndex = {{ $receiptNote->items->count() }};
 
             // Show products header if items exist
-            if (productsList.children().length > 0) {
-                productsHeader.css('display', 'grid');
+            if (productsList.children.length > 0) {
+                productsHeader.style.display = 'grid';
             }
 
             // Add new product row
-            $('#add_product').on('change', function() {
-                const productId = $(this).val();
-                const productName = $(this).find('option:selected').data('name');
-                if (!productId) return;
+            const addProductSelect = document.getElementById('add_product');
+            if (addProductSelect) {
+                addProductSelect.addEventListener('change', function() {
+                    const productId = this.value;
+                    const productName = this.options[this.selectedIndex].dataset.name;
+                    if (!productId) return;
 
-                const rowHtml = `
-                    <div class="product-item-row" id="row-${productIndex}">
+                    const newRow = document.createElement('div');
+                    newRow.className = 'product-item-row';
+                    newRow.id = `row-${productIndex}`;
+                    newRow.innerHTML = `
                         <input type="hidden" name="products[${productIndex}][product_id]" value="${productId}">
                         <div class="fw-bold d-flex align-items-center">${productName}</div>
                         <div>
@@ -347,190 +334,213 @@
                         <div class="d-flex align-items-center justify-content-center">
                             <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Remove from this receipt"><i class="fa fa-trash"></i></button>
                         </div>
-                    </div>`;
-                productsList.append(rowHtml);
-                productsHeader.css('display', 'grid');
-                productIndex++;
-                $(this).val(''); // Reset select
-                updateConversionForm();
-                calculateTotals();
+                    `;
+                    productsList.appendChild(newRow);
+                    productsHeader.style.display = 'grid';
+                    productIndex++;
+                    this.value = ''; // Reset select
+                    updateConversionForm();
+                    calculateTotals();
+                });
+            }
+
+            // Remove product row and quantity validation - converted to vanilla JS
+            productsList.addEventListener('click', function(e) {
+                if (e.target.closest('.remove-item-btn')) {
+                    e.target.closest('.product-item-row').remove();
+                    if (productsList.children.length === 0) {
+                        productsList.innerHTML = '<p class="text-muted text-center p-4 border rounded">No products added.</p>';
+                        productsHeader.style.display = 'none';
+                    }
+                    updateConversionForm();
+                    calculateTotals();
+                }
             });
 
-            // Remove product row
-            productsList.on('click', '.remove-item-btn', function() {
-                $(this).closest('.product-item-row').remove();
-                if (productsList.children().length === 0) {
-                    productsList.html('<p class="text-muted text-center p-4 border rounded">No products added.</p>');
-                    productsHeader.hide();
-                }
-                updateConversionForm();
-                calculateTotals();
-            });
+            productsList.addEventListener('input', function(e) {
+                if (e.target.classList.contains('quantity-input')) {
+                    const input = e.target;
+                    const maxQty = parseFloat(input.getAttribute('max')) || 9999;
+                    const currentQty = parseFloat(input.value);
 
-            // Validate quantity input
-            productsList.on('input', '.quantity-input', function() {
-                const $input = $(this);
-                const maxQty = parseFloat($input.attr('max')) || 9999;
-                const currentQty = parseFloat($input.val());
-
-                if (currentQty > maxQty) {
-                    $input.val(maxQty);
-                    const $warning = $('<small class="text-danger d-block mt-1">Max qty exceeded.</small>');
-                    $input.parent().append($warning);
-                    setTimeout(() => $warning.remove(), 2000);
+                    if (currentQty > maxQty) {
+                        input.value = maxQty;
+                        const warning = document.createElement('small');
+                        warning.className = 'text-danger d-block mt-1';
+                        warning.textContent = 'Max qty exceeded.';
+                        input.parentElement.appendChild(warning);
+                        setTimeout(() => warning.remove(), 2000);
+                    }
+                    updateConversionForm();
+                    calculateTotals();
                 }
-                updateConversionForm();
-                calculateTotals();
             });
 
             // Update conversion form inputs
             function updateConversionForm() {
-                const $convertForm = $('#convert-receipt-note-form');
-                $convertForm.find('input[name^="products"]').remove(); // Clear existing product inputs
+                const convertForm = document.getElementById('convert-receipt-note-form');
+                if (!convertForm) return;
+                
+                // Clear existing product inputs
+                convertForm.querySelectorAll('input[name^="products"]').forEach(input => input.remove());
 
-                $('.product-item-row').each(function(index) {
-                    const $row = $(this);
-                    const productId = $row.find('input[name$="[product_id]"]').val();
-                    const quantity = $row.find('.quantity-input').val();
-                    const unitPrice = $row.find('.unit-price').val();
-                    const discount = $row.find('.discount-input').val();
-                    const cgstRate = $row.find('.cgst-rate').val();
-                    const sgstRate = $row.find('.sgst-rate').val();
-                    const igstRate = $row.find('.igst-rate').val();
-                    const status = $row.find('.status-select').val();
+                document.querySelectorAll('.product-item-row').forEach((row, index) => {
+                    const productId = row.querySelector('input[name$="[product_id]"]').value;
+                    const quantity = row.querySelector('.quantity-input').value;
+                    const unitPrice = row.querySelector('.unit-price').value;
+                    const discount = row.querySelector('.discount-input').value;
+                    const cgstRate = row.querySelector('.cgst-rate').value;
+                    const sgstRate = row.querySelector('.sgst-rate').value;
+                    const igstRate = row.querySelector('.igst-rate').value;
+                    const status = row.querySelector('.status-select').value;
 
-                    $convertForm.append(`
-                        <input type="hidden" name="products[${index}][product_id]" value="${productId}">
-                        <input type="hidden" name="products[${index}][quantity]" class="convert-quantity-input" value="${quantity}">
-                        <input type="hidden" name="products[${index}][unit_price]" class="convert-unit-price" value="${unitPrice}">
-                        <input type="hidden" name="products[${index}][discount]" class="convert-discount-input" value="${discount}">
-                        <input type="hidden" name="products[${index}][cgst_rate]" class="convert-cgst-rate" value="${cgstRate}">
-                        <input type="hidden" name="products[${index}][sgst_rate]" class="convert-sgst-rate" value="${sgstRate}">
-                        <input type="hidden" name="products[${index}][igst_rate]" class="convert-igst-rate" value="${igstRate}">
-                        <input type="hidden" name="products[${index}][status]" class="convert-status" value="${status}">
-                    `);
+                    // Create hidden inputs for conversion form
+                    const hiddenInputs = [
+                        {name: `products[${index}][product_id]`, value: productId},
+                        {name: `products[${index}][quantity]`, value: quantity, class: 'convert-quantity-input'},
+                        {name: `products[${index}][unit_price]`, value: unitPrice, class: 'convert-unit-price'},
+                        {name: `products[${index}][discount]`, value: discount, class: 'convert-discount-input'},
+                        {name: `products[${index}][cgst_rate]`, value: cgstRate, class: 'convert-cgst-rate'},
+                        {name: `products[${index}][sgst_rate]`, value: sgstRate, class: 'convert-sgst-rate'},
+                        {name: `products[${index}][igst_rate]`, value: igstRate, class: 'convert-igst-rate'},
+                        {name: `products[${index}][status]`, value: status, class: 'convert-status'}
+                    ];
+
+                    hiddenInputs.forEach(({name, value, class: className}) => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = name;
+                        input.value = value;
+                        if (className) input.className = className;
+                        convertForm.appendChild(input);
+                    });
                 });
 
                 // Update top-level fields
-                $convertForm.find('input[name="purchase_order_id"]').val($('#purchase_order_id').val());
-                $convertForm.find('input[name="receipt_number"]').val($('#receipt_number').val());
-                $convertForm.find('input[name="receipt_date"]').val($('#receipt_date').val());
-                $convertForm.find('input[name="invoice_number"]').val($('#invoice_number').val());
-                $convertForm.find('input[name="invoice_date"]').val($('#invoice_date').val());
-                $convertForm.find('input[name="discount"]').val($('#discount').val());
-                $convertForm.find('input[name="note"]').val($('#note').val());
+                const updateField = (name, sourceId) => {
+                    const targetInput = convertForm.querySelector(`input[name="${name}"]`);
+                    const sourceInput = document.getElementById(sourceId);
+                    if (targetInput && sourceInput) {
+                        targetInput.value = sourceInput.value;
+                    }
+                };
+
+                updateField('purchase_order_id', 'purchase_order_id');
+                updateField('receipt_number', 'receipt_number');
+                updateField('receipt_date', 'receipt_date');
+                updateField('invoice_number', 'invoice_number');
+                updateField('invoice_date', 'invoice_date');
+                updateField('discount', 'discount');
+                updateField('note', 'note');
             }
 
-            // REAL-TIME CALCULATION FUNCTION
+            // REAL-TIME CALCULATION FUNCTION - FIXED TO MATCH PURCHASE ORDER LOGIC
             function calculateTotals() {
-                // Initialize totals
-                let grandSubtotal = 0;
-                let grandTotalDiscount = 0;
-                let grandTotalCgst = 0;
-                let grandTotalSgst = 0;
-                let grandTotalIgst = 0;
+                let subtotal = 0;
+                let totalDiscount = 0;
+                let totalCgst = 0;
+                let totalSgst = 0;
+                let totalIgst = 0;
 
                 // Get global discount rate
-                const globalDiscountRate = parseFloat($('#discount').val()) || 0;
+                const globalDiscountRate = parseFloat(document.getElementById('discount').value) || 0;
 
-                // Process each product row
-                $('.product-item-row').each(function() {
-                    const $row = $(this);
-                    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
-                    const unitPrice = parseFloat($row.find('.unit-price').val()) || 0;
-                    const itemDiscountRate = parseFloat($row.find('.discount-input').val()) || globalDiscountRate;
-                    const cgstRate = parseFloat($row.find('.cgst-rate').val()) || 0;
-                    const sgstRate = parseFloat($row.find('.sgst-rate').val()) || 0;
-                    const igstRate = parseFloat($row.find('.igst-rate').val()) || 0;
+                // Process each product row using vanilla JavaScript like purchase order
+                document.querySelectorAll('.product-item-row').forEach(row => {
+                    const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+                    const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
+                    
+                    // Get item-specific discount or use global discount
+                    const itemDiscountInput = row.querySelector('.discount-input');
+                    const itemDiscountRate = itemDiscountInput && itemDiscountInput.value ? 
+                        parseFloat(itemDiscountInput.value) : globalDiscountRate;
+                    
+                    const cgstRate = parseFloat(row.querySelector('.cgst-rate').value) || 0;
+                    const sgstRate = parseFloat(row.querySelector('.sgst-rate').value) || 0;
+                    const igstRate = parseFloat(row.querySelector('.igst-rate').value) || 0;
 
                     if (quantity > 0 && unitPrice > 0) {
-                        // Calculate base price
+                        // Calculate like purchase order: basePrice * (1 - discount%)
                         const basePrice = quantity * unitPrice;
-                        
-                        // Calculate discount
                         const discountAmount = basePrice * (itemDiscountRate / 100);
-                        const priceAfterDiscount = basePrice - discountAmount;
+                        const lineSubtotal = basePrice - discountAmount;
+                        
+                        subtotal += lineSubtotal;
+                        totalDiscount += discountAmount;
 
-                        // Calculate GST
-                        const cgstAmount = priceAfterDiscount * (cgstRate / 100);
-                        const sgstAmount = priceAfterDiscount * (sgstRate / 100);
-                        const igstAmount = priceAfterDiscount * (igstRate / 100);
-
-                        // Add to grand totals
-                        grandSubtotal += priceAfterDiscount;
-                        grandTotalDiscount += discountAmount;
-                        grandTotalCgst += cgstAmount;
-                        grandTotalSgst += sgstAmount;
-                        grandTotalIgst += igstAmount;
+                        // Calculate GST on discounted amount
+                        totalCgst += lineSubtotal * (cgstRate / 100);
+                        totalSgst += lineSubtotal * (sgstRate / 100);
+                        totalIgst += lineSubtotal * (igstRate / 100);
                     }
                 });
 
                 // Calculate grand total
-                const grandTotal = grandSubtotal + grandTotalCgst + grandTotalSgst + grandTotalIgst;
+                const grandTotal = subtotal + totalCgst + totalSgst + totalIgst;
 
-                // Update display elements with animation
-                $('#subtotal').text('₹' + grandSubtotal.toFixed(2));
-                $('#total_discount').text('₹' + grandTotalDiscount.toFixed(2));
-                $('#total_cgst').text('₹' + grandTotalCgst.toFixed(2));
-                $('#total_sgst').text('₹' + grandTotalSgst.toFixed(2));
-                $('#total_igst').text('₹' + grandTotalIgst.toFixed(2));
-                $('#grand_total').text('₹' + grandTotal.toFixed(2));
-                
-                // Add a subtle animation to show the update
-                $('.totals-card').addClass('updated');
-                setTimeout(() => $('.totals-card').removeClass('updated'), 300);
+                // Update display elements exactly like purchase order
+                document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+                document.getElementById('total_discount').textContent = `₹${totalDiscount.toFixed(2)}`;
+                document.getElementById('total_cgst').textContent = `₹${totalCgst.toFixed(2)}`;
+                document.getElementById('total_sgst').textContent = `₹${totalSgst.toFixed(2)}`;
+                document.getElementById('total_igst').textContent = `₹${totalIgst.toFixed(2)}`;
+                document.getElementById('grand_total').textContent = `₹${grandTotal.toFixed(2)}`;
             }
 
             // Make calculateTotals globally accessible for the manual button
             window.calculateTotals = calculateTotals;
 
             // Validate conversion form before submission - WITH UNIT PRICE CHECK
-            $('#convert-btn').on('click', function(e) {
-                console.log('🔄 Convert button clicked, checking unit prices...');
-                
-                let hasInvalidPrices = false;
-                let invalidRows = [];
-                
-                // Check each product row for valid unit prices
-                $('.product-item-row').each(function(index) {
-                    const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
-                    const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
+            const convertBtn = document.getElementById('convert-btn');
+            if (convertBtn) {
+                convertBtn.addEventListener('click', function(e) {
+                    let hasInvalidPrices = false;
+                    let invalidRows = [];
                     
-                    if (quantity > 0 && unitPrice <= 0) {
-                        hasInvalidPrices = true;
-                        invalidRows.push(index + 1);
+                    // Check each product row for valid unit prices
+                    document.querySelectorAll('.product-item-row').forEach((row, index) => {
+                        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+                        const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
+                        
+                        if (quantity > 0 && unitPrice <= 0) {
+                            hasInvalidPrices = true;
+                            invalidRows.push(index + 1);
+                        }
+                    });
+                    
+                    if (hasInvalidPrices) {
+                        e.preventDefault();
+                        alert(`Cannot convert to Purchase Entry!\n\nProducts at row(s) ${invalidRows.join(', ')} have quantity > 0 but unit price is 0 or empty.\n\nPlease enter valid unit prices for all products before conversion.`);
+                        return;
                     }
+                    
+                    // Update the conversion form and proceed
+                    updateConversionForm();
                 });
-                
-                if (hasInvalidPrices) {
-                    e.preventDefault();
-                    alert(`Cannot convert to Purchase Entry!\n\nProducts at row(s) ${invalidRows.join(', ')} have quantity > 0 but unit price is 0 or empty.\n\nPlease enter valid unit prices for all products before conversion.`);
-                    console.log('❌ Conversion blocked - invalid unit prices at rows:', invalidRows);
-                    return;
-                }
-                
-                // Update the conversion form and proceed
-                updateConversionForm();
-                
-
-            });
-
-
+            }
 
             // Initialize Select2 for the add product dropdown
-            $('#add_product').select2({
-                placeholder: "Select a product...",
-                allowClear: true,
-                width: '100%'
-            });
+            const addProductSelect = document.getElementById('add_product');
+            if (addProductSelect && window.jQuery) {
+                window.jQuery(addProductSelect).select2({
+                    placeholder: "Select a product...",
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
 
-            // REAL-TIME EVENT BINDING - Calculates totals as you type
-            $(document).on('input keyup change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, #discount', function() {
-                calculateTotals(); // Immediate calculation, no delay
+            // REAL-TIME EVENT BINDING - EXACTLY LIKE PURCHASE ORDER
+            document.addEventListener('input', function(e) {
+                const target = e.target;
+                if (target.matches('.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, #discount')) {
+                    calculateTotals();
+                }
+                
+                // Update conversion form on relevant changes
+                if (target.matches('.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #discount, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id')) {
+                    updateConversionForm();
+                }
             });
-
-            // Update conversion form on relevant changes
-            $(document).on('input change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #discount, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id', updateConversionForm);
 
             // Calculate totals on page load
             calculateTotals();
