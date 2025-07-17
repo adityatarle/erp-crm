@@ -409,6 +409,27 @@
 
             // Also update conversion form on relevant changes
             $(document).on('input change', '.quantity-input, .unit-price, .discount-input, .cgst-rate, .sgst-rate, .igst-rate, .status-select, #receipt_number, #receipt_date, #invoice_number, #invoice_date, #note, #purchase_order_id, #purchase_date', updateConversionForm);
+
+            // Validation: Only CGST+SGST or IGST can be filled for each product
+            $('#edit-receipt-note-form, #convert-receipt-note-form').on('submit', function(e) {
+                let valid = true;
+                let errorMsg = '';
+                $('.product-item-row').each(function(index) {
+                    const cgst = parseFloat($(this).find('.cgst-rate').val()) || 0;
+                    const sgst = parseFloat($(this).find('.sgst-rate').val()) || 0;
+                    const igst = parseFloat($(this).find('.igst-rate').val()) || 0;
+                    if ((igst > 0 && (cgst > 0 || sgst > 0)) || ((cgst > 0 || sgst > 0) && igst > 0)) {
+                        valid = false;
+                        errorMsg = 'For each product, you can only enter either IGST or CGST/SGST, not both. Please correct row #' + (index + 1) + '.';
+                        return false; // break loop
+                    }
+                });
+                if (!valid) {
+                    alert(errorMsg);
+                    e.preventDefault();
+                    return false;
+                }
+            });
         });
     </script>
 </body>
