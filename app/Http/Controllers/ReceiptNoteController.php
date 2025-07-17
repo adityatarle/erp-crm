@@ -194,22 +194,55 @@ class ReceiptNoteController extends Controller
         // Get the receipt note to check existing invoice details
         $receiptNote = ReceiptNote::findOrFail($id);
         
-        // If invoice details are empty, provide defaults or make them optional
+        // FINANCIAL DETAILS VALIDATION - Only proceed if we have complete financial info
         $invoiceNumber = $request->invoice_number;
         $invoiceDate = $request->invoice_date;
         
-        // If invoice fields are empty, generate defaults
-        if (empty($invoiceNumber)) {
-            // Generate a unique invoice number
-            do {
-                $invoiceNumber = 'INV-' . $receiptNote->receipt_number . '-' . date('Ymd') . '-' . strtoupper(Str::random(4));
-            } while (PurchaseEntry::where('invoice_number', $invoiceNumber)->exists());
-        }
-        if (empty($invoiceDate)) {
-            $invoiceDate = $receiptNote->receipt_date;
+        // Check if this is a "quick conversion" (from edit page) vs dedicated conversion page
+        $isQuickConversion = empty($invoiceNumber) || empty($invoiceDate);
+        
+        if ($isQuickConversion) {
+            // For quick conversion, we need to ensure financial details are complete
+            $missingFinancialDetails = [];
+            
+            // Check if invoice details are missing
+            if (empty($invoiceNumber)) {
+                $missingFinancialDetails[] = 'Invoice Number';
+            }
+            if (empty($invoiceDate)) {
+                $missingFinancialDetails[] = 'Invoice Date';
+            }
+            
+            // Check if any products have missing financial details
+            $products = $request->products ?? [];
+            foreach ($products as $index => $product) {
+                $unitPrice = $product['unit_price'] ?? 0;
+                $quantity = $product['quantity'] ?? 0;
+                
+                if ($quantity > 0 && $unitPrice <= 0) {
+                    $missingFinancialDetails[] = "Unit Price for product at row " . ($index + 1);
+                }
+            }
+            
+            // If financial details are missing, return validation error
+            if (!empty($missingFinancialDetails)) {
+                return redirect()->back()->withErrors([
+                    'financial_validation' => 'Cannot convert to Purchase Entry without complete financial details. Missing: ' . implode(', ', $missingFinancialDetails) . '. Please fill in all invoice details, unit prices, and GST rates before conversion.'
+                ])->withInput();
+            }
+            
+            // If we reach here, generate invoice details only if ALL financial data is present
+            if (empty($invoiceNumber)) {
+                do {
+                    $invoiceNumber = 'INV-' . $receiptNote->receipt_number . '-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+                } while (PurchaseEntry::where('invoice_number', $invoiceNumber)->exists());
+            }
+            if (empty($invoiceDate)) {
+                $invoiceDate = $receiptNote->receipt_date;
+            }
         }
         
-        // Update request with default values
+        // Update request with values
         $request->merge([
             'invoice_number' => $invoiceNumber,
             'invoice_date' => $invoiceDate,
@@ -218,16 +251,20 @@ class ReceiptNoteController extends Controller
         $request->validate([
             'invoice_number' => 'required|string|unique:purchase_entries,invoice_number',
             'invoice_date' => 'required|date',
-            'purchase_order_id' => 'nullable|exists:purchase_orders,id', // Made optional
+            'purchase_order_id' => 'nullable|exists:purchase_orders,id',
             'products' => 'required|array|min:1',
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
-            'products.*.unit_price' => 'required|numeric|min:0',
+            'products.*.unit_price' => 'required|numeric|min:0.01', // Ensure unit price is not zero
             'products.*.discount' => 'nullable|numeric|min:0|max:100',
             'products.*.cgst_rate' => 'nullable|numeric|min:0|max:100',
             'products.*.sgst_rate' => 'nullable|numeric|min:0|max:100',
             'products.*.igst_rate' => 'nullable|numeric|min:0|max:100',
             'products.*.status' => 'required|in:pending,received',
+        ], [
+            'products.*.unit_price.min' => 'Unit price must be greater than 0 for conversion to purchase entry.',
+            'invoice_number.required' => 'Invoice number is required for purchase entry conversion.',
+            'invoice_date.required' => 'Invoice date is required for purchase entry conversion.',
         ]);
 
         try {
