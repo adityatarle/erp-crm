@@ -662,11 +662,10 @@ class ReceiptNoteController extends Controller
 
             if ($purchaseOrder) {
                 // Get quantities already received on OTHER notes for this PO
-                // FIXED: Use 'quantity' instead of 'quantity_received'
                 $receivedOnOtherNotes = $purchaseOrder->receiptNoteItems
                     ->where('receipt_note_id', '!=', $receiptNote->id)
                     ->groupBy('product_id')
-                    ->map(fn($group) => $group->sum('quantity')); // Fixed column name
+                    ->map(fn($group) => $group->sum('quantity_received'));
 
                 // For each item currently on THIS receipt note, calculate its maximum allowable quantity
                 foreach ($receiptNote->items as $currentItem) {
@@ -674,8 +673,7 @@ class ReceiptNoteController extends Controller
                     if ($poItem) {
                         $otherReceived = $receivedOnOtherNotes->get($currentItem->product_id, 0);
                         // The max is what they already entered + what's remaining on the PO
-                        // FIXED: Use 'quantity' instead of 'quantity_received'
-                        $currentItem->quantity_available = $currentItem->quantity + ($poItem->quantity - $otherReceived - $currentItem->quantity);
+                        $currentItem->quantity_available = $currentItem->quantity_received + ($poItem->quantity - $otherReceived - $currentItem->quantity_received);
                     } else {
                         $currentItem->quantity_available = 9999; // Manually added item
                     }
