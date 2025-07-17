@@ -232,9 +232,20 @@ class ReceiptNoteController extends Controller
         $invoiceNumber = $request->invoice_number ?? $receiptNote->invoice_number;
         $invoiceDate = $request->invoice_date ?? $receiptNote->invoice_date;
 
+        // Additional check: sometimes the values might be passed with different names or trimmed
+        if (empty($invoiceNumber) && $request->has('invoice_number')) {
+            $invoiceNumber = trim($request->input('invoice_number'));
+        }
+        
+        if (empty($invoiceDate) && $request->has('invoice_date')) {
+            $invoiceDate = trim($request->input('invoice_date'));
+        }
+
         Log::info('Invoice details resolved', [
             'final_invoice_number' => $invoiceNumber,
             'final_invoice_date' => $invoiceDate,
+            'request_has_invoice_number' => $request->has('invoice_number'),
+            'request_has_invoice_date' => $request->has('invoice_date'),
         ]);
 
         if (empty($invoiceNumber)) {

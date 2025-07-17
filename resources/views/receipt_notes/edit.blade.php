@@ -258,13 +258,13 @@
                         @csrf
                         @method('POST')
                         <input type="hidden" name="purchase_order_id" id="convert_purchase_order_id" value="{{ $receiptNote->purchase_order_id }}">
-                        <input type="hidden" name="party_id" value="{{ $receiptNote->party_id }}">
-                        <input type="hidden" name="invoice_number" value="{{  $receiptNote->invoice_number }}">
-                        <input type="hidden" name="invoice_date" value="{{  $receiptNote->invoice_date }}">
-                        <input type="hidden" name="receipt_number" value="{{ old('receipt_number', $receiptNote->receipt_number) }}">
-                        <input type="hidden" name="receipt_date" value="{{ old('receipt_date', $receiptNote->receipt_date) }}">
-                        <input type="hidden" name="note" value="{{ old('note', $receiptNote->note) }}">
-                        <input type="hidden" name="discount" value="{{ old('discount', $receiptNote->discount) }}">
+                        <input type="hidden" name="party_id" id="convert_party_id" value="{{ $receiptNote->party_id }}">
+                        <input type="hidden" name="invoice_number" id="convert_invoice_number" value="{{ old('invoice_number', $receiptNote->invoice_number) }}">
+                        <input type="hidden" name="invoice_date" id="convert_invoice_date" value="{{ old('invoice_date', $receiptNote->invoice_date) }}">
+                        <input type="hidden" name="receipt_number" id="convert_receipt_number" value="{{ old('receipt_number', $receiptNote->receipt_number) }}">
+                        <input type="hidden" name="receipt_date" id="convert_receipt_date" value="{{ old('receipt_date', $receiptNote->receipt_date) }}">
+                        <input type="hidden" name="note" id="convert_note" value="{{ old('note', $receiptNote->note) }}">
+                        <input type="hidden" name="discount" id="convert_discount" value="{{ old('discount', $receiptNote->discount) }}">
                         @foreach($receiptNote->items as $index => $item)
                         <input type="hidden" name="products[{{ $index }}][product_id]" value="{{ $item->product_id }}">
                         <input type="hidden" name="products[{{ $index }}][quantity]" class="convert-quantity-input" value="{{ old('products.' . $index . '.quantity', $item->quantity) }}">
@@ -390,14 +390,14 @@
                     `);
                 });
 
-                // Update top-level fields
-                $convertForm.find('input[name="purchase_order_id"]').val($('#purchase_order_id').val());
-                $convertForm.find('input[name="receipt_number"]').val($('#receipt_number').val());
-                $convertForm.find('input[name="receipt_date"]').val($('#receipt_date').val());
-                $convertForm.find('input[name="invoice_number"]').val($('#invoice_number').val());
-                $convertForm.find('input[name="invoice_date"]').val($('#invoice_date').val());
-                $convertForm.find('input[name="discount"]').val($('#discount').val());
-                $convertForm.find('input[name="note"]').val($('#note').val());
+                // Update top-level fields using IDs
+                $('#convert_purchase_order_id').val($('#purchase_order_id').val());
+                $('#convert_receipt_number').val($('#receipt_number').val());
+                $('#convert_receipt_date').val($('#receipt_date').val());
+                $('#convert_invoice_number').val($('#invoice_number').val());
+                $('#convert_invoice_date').val($('#invoice_date').val());
+                $('#convert_discount').val($('#discount').val());
+                $('#convert_note').val($('#note').val());
             }
 
             // Calculate totals
@@ -490,22 +490,29 @@
                     return false;
                 }
 
-                // Update the conversion form with current values
+                // Force update the conversion form with current values
                 updateConversionForm();
                 
-                // Final check that the hidden form has the correct values
-                const hiddenInvoiceNumber = $('#convert-receipt-note-form input[name="invoice_number"]').val();
-                const hiddenInvoiceDate = $('#convert-receipt-note-form input[name="invoice_date"]').val();
-                
-                console.log('Hidden form values - Invoice Number:', hiddenInvoiceNumber, 'Invoice Date:', hiddenInvoiceDate);
-                
-                if (!hiddenInvoiceNumber || !hiddenInvoiceDate) {
-                    e.preventDefault();
-                    alert('Error: Form data not properly synchronized. Please try again.');
-                    return false;
-                }
+                // Wait a moment for DOM updates
+                setTimeout(function() {
+                    // Final check that the hidden form has the correct values
+                    const hiddenInvoiceNumber = $('#convert_invoice_number').val();
+                    const hiddenInvoiceDate = $('#convert_invoice_date').val();
+                    
+                    console.log('Hidden form values - Invoice Number:', hiddenInvoiceNumber, 'Invoice Date:', hiddenInvoiceDate);
+                    
+                    if (!hiddenInvoiceNumber || !hiddenInvoiceDate) {
+                        alert('Error: Form data not properly synchronized. Invoice Number: "' + hiddenInvoiceNumber + '", Invoice Date: "' + hiddenInvoiceDate + '"');
+                        return false;
+                    }
+                    
+                    // All validations passed, submit the form
+                    $('#convert-receipt-note-form').submit();
+                }, 100);
 
-                return true;
+                // Prevent default submission, we'll handle it manually
+                e.preventDefault();
+                return false;
             });
 
             // Update conversion form on input change
