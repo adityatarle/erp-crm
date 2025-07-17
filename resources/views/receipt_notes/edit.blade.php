@@ -142,18 +142,18 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label for="purchase_date" class="form-label">Entry Date</label>
-                                    <input type="date" name="purchase_date" id="purchase_date" class="form-control" value="{{ old('purchase_date', $receiptNote->purchase_date ?? $receiptNote->receipt_date) }}" readonly>
+                                    <input type="date" name="purchase_date" id="purchase_date" class="form-control" value="{{ old('purchase_date', $receiptNote->purchase_date ?? $receiptNote->receipt_date) }}">
                                 </div>
                                 <div class="col-md-4">
                                     <label for="invoice_number" class="form-label">Invoice Number</label>
-                                    <input type="text" name="invoice_number" id="invoice_number" class="form-control" value="{{ old('invoice_number', $receiptNote->invoice_number) }}" readonly>
+                                    <input type="text" name="invoice_number" id="invoice_number" class="form-control" value="{{ old('invoice_number', $receiptNote->invoice_number) }}">
                                     @error('invoice_number')
                                     <div class="text-danger">{{ $message }}</div>
                                     @enderror
                                 </div>
                                 <div class="col-md-4">
                                     <label for="invoice_date" class="form-label">Invoice Date</label>
-                                    <input type="date" name="invoice_date" id="invoice_date" class="form-control" value="{{ old('invoice_date', $receiptNote->invoice_date) }}" readonly>
+                                    <input type="date" name="invoice_date" id="invoice_date" class="form-control" value="{{ old('invoice_date', $receiptNote->invoice_date) }}">
                                     @error('invoice_date')
                                     <div class="text-danger">{{ $message }}</div>
                                     @enderror
