@@ -163,12 +163,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/receipt_notes', [ReceiptNoteController::class, 'index'])->name('receipt_notes.index');
     Route::get('/receipt_notes/create', [ReceiptNoteController::class, 'create'])->name('receipt_notes.create');
     Route::post('/receipt_notes', [ReceiptNoteController::class, 'store'])->name('receipt_notes.store');
-    // THE FIX: Add these two routes for the conversion workflow
-    Route::get('/receipt-notes/{id}/convert', [ReceiptNoteController::class, 'convert'])->name('receipt_notes.convert');
-    Route::post('/receipt-notes/{id}/store-conversion', [ReceiptNoteController::class, 'storeConversion'])->name('receipt_notes.store_conversion');
+    // Receipt Notes Conversion Routes
+    Route::get('/receipt-notes/{id}/convert', [ReceiptNoteController::class, 'convert'])->name('receipt_notes.convert_form');
+    Route::post('/receipt-notes/{id}/convert', [App\Http\Controllers\ReceiptNoteController::class, 'convertToPurchaseEntry'])->name('receipt_notes.convert');
     Route::get('/receipt-notes/{receiptNote}/edit', [ReceiptNoteController::class, 'edit'])->name('receipt_notes.edit');
     Route::put('/receipt-notes/{receiptNote}', [ReceiptNoteController::class, 'update'])->name('receipt_notes.update');
-    Route::post('receipt-notes/{id}/convert', [App\Http\Controllers\ReceiptNoteController::class, 'convertToPurchaseEntry'])->name('receipt_notes.convert');
 
     // ADD THIS NEW ROUTE
     Route::get('receipt_notes/{id}/pdf', [ReceiptNoteController::class, 'downloadPDF'])->name('receipt_notes.pdf');

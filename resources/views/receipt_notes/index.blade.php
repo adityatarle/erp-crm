@@ -46,7 +46,7 @@
                                     <td class="d-flex gap-1">
                                         <a href="{{ route('receipt_notes.edit', $note->id) }}" class="btn btn-sm btn-warning">Edit</a>
                                         @if(empty($note->is_converted) || !$note->is_converted)
-                                            <a href="{{ route('receipt_notes.convert', $note->id) }}" class="btn btn-sm btn-success">Convert to Purchase Entry</a>
+                                            <a href="{{ route('receipt_notes.convert_form', $note->id) }}" class="btn btn-sm btn-success">Convert to Purchase Entry</a>
                                         @endif
                                         <a href="{{ route('receipt_notes.pdf', $note->id) }}" class="btn btn-sm btn-danger" target="_blank">
                                             <i class="fa fa-file-pdf"></i> PDF
