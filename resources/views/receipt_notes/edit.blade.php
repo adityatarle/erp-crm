@@ -250,6 +250,9 @@
 
                         <div class="mt-4 text-end">
                             <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Update Receipt Note</button>
+                            @if(!$receiptNote->is_converted)
+                                <button type="submit" class="btn btn-success btn-lg ml-2" id="update-and-convert-btn" name="convert_to_purchase_entry" value="1">Update & Convert to Purchase Entry</button>
+                            @endif
                         </div>
                     </form>
 
@@ -275,7 +278,11 @@
                         <input type="hidden" name="products[{{ $index }}][igst_rate]" class="convert-igst-rate" value="{{ old('products.' . $index . '.igst_rate', $item->igst_rate) }}">
                         <input type="hidden" name="products[{{ $index }}][status]" class="convert-status" value="{{ $item->status }}">
                         @endforeach
-                        <button type="submit" class="btn btn-success btn-lg" id="convert-btn">Convert to Purchase Entry</button>
+                        @if($receiptNote->is_converted)
+                            <button type="button" class="btn btn-secondary btn-lg" disabled>Already Converted to Purchase Entry</button>
+                        @else
+                            <button type="submit" class="btn btn-success btn-lg" id="convert-btn">Convert to Purchase Entry</button>
+                        @endif
                     </form>
                 </div>
             </div>
@@ -442,15 +449,53 @@
                 $('#grand_total').text('₹' + (grandSubtotal + grandTotalCgst + grandTotalSgst + grandTotalIgst).toFixed(2));
             }
 
+            // Add validation for the update and convert button
+            $('#update-and-convert-btn').on('click', function(e) {
+                const invoiceNumber = $('#invoice_number').val().trim();
+                const invoiceDate = $('#invoice_date').val().trim();
+
+                if (!invoiceNumber || !invoiceDate) {
+                    e.preventDefault();
+                    alert('Please fill in Invoice Number and Invoice Date before converting to a purchase entry.');
+                    if (!invoiceNumber) {
+                        $('#invoice_number').focus();
+                    } else if (!invoiceDate) {
+                        $('#invoice_date').focus();
+                    }
+                    return false;
+                }
+
+                // Check if all products have unit prices
+                let missingPriceProducts = [];
+                $('.product-item-row').each(function() {
+                    const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
+                    const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
+                    const productName = $(this).find('select[name$="[product_id]"] option:selected').text();
+                    
+                    if (quantity > 0 && unitPrice <= 0) {
+                        missingPriceProducts.push(productName);
+                    }
+                });
+
+                if (missingPriceProducts.length > 0) {
+                    e.preventDefault();
+                    alert('Please add unit prices for the following products: ' + missingPriceProducts.join(', '));
+                    return false;
+                }
+
+                return confirm('Are you sure you want to update and convert this receipt note to a purchase entry? This action cannot be undone.');
+            });
+
             // Validate conversion form before submission
             $('#convert-btn').on('click', function(e) {
+                e.preventDefault(); // Prevent default submission
+                
                 const invoiceNumber = $('#invoice_number').val().trim();
                 const invoiceDate = $('#invoice_date').val().trim();
 
                 console.log('Conversion validation - Invoice Number:', invoiceNumber, 'Invoice Date:', invoiceDate);
 
                 if (!invoiceNumber || !invoiceDate) {
-                    e.preventDefault();
                     alert('Please fill in Invoice Number and Invoice Date before converting to a purchase entry.');
                     // Focus on the first empty field
                     if (!invoiceNumber) {
@@ -479,39 +524,39 @@
                 });
 
                 if (!hasValidProducts) {
-                    e.preventDefault();
                     alert('Please add at least one product with a valid quantity.');
                     return false;
                 }
 
                 if (missingPriceProducts.length > 0) {
-                    e.preventDefault();
                     alert('Please add unit prices for the following products: ' + missingPriceProducts.join(', '));
                     return false;
                 }
 
-                // Force update the conversion form with current values
-                updateConversionForm();
-                
-                // Wait a moment for DOM updates
-                setTimeout(function() {
-                    // Final check that the hidden form has the correct values
-                    const hiddenInvoiceNumber = $('#convert_invoice_number').val();
-                    const hiddenInvoiceDate = $('#convert_invoice_date').val();
-                    
-                    console.log('Hidden form values - Invoice Number:', hiddenInvoiceNumber, 'Invoice Date:', hiddenInvoiceDate);
-                    
-                    if (!hiddenInvoiceNumber || !hiddenInvoiceDate) {
-                        alert('Error: Form data not properly synchronized. Invoice Number: "' + hiddenInvoiceNumber + '", Invoice Date: "' + hiddenInvoiceDate + '"');
-                        return false;
-                    }
-                    
-                    // All validations passed, submit the form
-                    $('#convert-receipt-note-form').submit();
-                }, 100);
+                // Instead of relying on hidden form synchronization, 
+                // let's directly set the values right before submission
+                $('#convert_invoice_number').val(invoiceNumber);
+                $('#convert_invoice_date').val(invoiceDate);
+                $('#convert_purchase_order_id').val($('#purchase_order_id').val());
+                $('#convert_receipt_number').val($('#receipt_number').val());
+                $('#convert_receipt_date').val($('#receipt_date').val());
+                $('#convert_discount').val($('#discount').val());
+                $('#convert_note').val($('#note').val());
 
-                // Prevent default submission, we'll handle it manually
-                e.preventDefault();
+                // Update product information
+                updateConversionForm();
+
+                // Log final values for debugging
+                console.log('Final hidden form values:');
+                console.log('Invoice Number:', $('#convert_invoice_number').val());
+                console.log('Invoice Date:', $('#convert_invoice_date').val());
+
+                // Show confirmation dialog
+                if (confirm('Are you sure you want to convert this receipt note to a purchase entry? This action cannot be undone.')) {
+                    // Submit the form
+                    $('#convert-receipt-note-form')[0].submit();
+                }
+
                 return false;
             });
 
