@@ -11,7 +11,8 @@ class PurchaseEntry extends Model
         'cgst',
         'sgst',
         'igst',
-        'from_receipt_note',];
+        // 'from_receipt_note', // Commented out until column is added
+        ];
 
     public function party()
     {

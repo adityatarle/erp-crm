@@ -294,7 +294,7 @@ class ReceiptNoteController extends Controller
                     'note' => $request->note ?? $receiptNote->note,
                     'gst_amount' => 0, // Will be updated
                     'discount' => $discountRate,
-                    'from_receipt_note' => true,
+                    // 'from_receipt_note' => true, // Commented out until column is added
                 ]);
                 Log::info('Purchase entry created', [
                     'id' => $purchaseEntry->id,
