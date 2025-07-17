@@ -191,10 +191,32 @@ class ReceiptNoteController extends Controller
 
     public function convertToPurchaseEntry(Request $request, $id)
     {
-        $request->validate([
-            'invoice_number' => 'required|string|unique:purchase_entries,invoice_number',
-            'invoice_date' => 'required|date',
-            'purchase_order_id' => 'nullable|exists:purchase_orders,id', // Made optional
+        // Add debugging information
+        Log::info('Conversion request started', [
+            'receipt_note_id' => $id,
+            'request_data' => $request->all(),
+            'invoice_number_from_request' => $request->invoice_number,
+            'invoice_date_from_request' => $request->invoice_date,
+        ]);
+
+        // First get the receipt note to check its current values
+        $receiptNote = ReceiptNote::findOrFail($id);
+        
+        Log::info('Receipt note loaded for conversion', [
+            'id' => $receiptNote->id,
+            'invoice_number_from_db' => $receiptNote->invoice_number,
+            'invoice_date_from_db' => $receiptNote->invoice_date,
+            'is_converted' => $receiptNote->is_converted,
+        ]);
+        
+        // Check if already converted
+        if ($receiptNote->is_converted) {
+            return redirect()->back()->with('error', 'This receipt note has already been converted to a purchase entry.');
+        }
+
+        // Prepare validation rules
+        $validationRules = [
+            'purchase_order_id' => 'nullable|exists:purchase_orders,id',
             'products' => 'required|array|min:1',
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|numeric|min:0',
@@ -204,20 +226,40 @@ class ReceiptNoteController extends Controller
             'products.*.sgst_rate' => 'nullable|numeric|min:0|max:100',
             'products.*.igst_rate' => 'nullable|numeric|min:0|max:100',
             'products.*.status' => 'required|in:pending,received',
+        ];
+
+        // Check if invoice number and date are provided in request or already exist in receipt note
+        $invoiceNumber = $request->invoice_number ?? $receiptNote->invoice_number;
+        $invoiceDate = $request->invoice_date ?? $receiptNote->invoice_date;
+
+        Log::info('Invoice details resolved', [
+            'final_invoice_number' => $invoiceNumber,
+            'final_invoice_date' => $invoiceDate,
         ]);
 
+        if (empty($invoiceNumber)) {
+            Log::warning('Invoice number missing for conversion', ['receipt_note_id' => $id]);
+            return redirect()->back()->withErrors(['invoice_number' => 'Invoice number is required for conversion to purchase entry.']);
+        }
+
+        if (empty($invoiceDate)) {
+            Log::warning('Invoice date missing for conversion', ['receipt_note_id' => $id]);
+            return redirect()->back()->withErrors(['invoice_date' => 'Invoice date is required for conversion to purchase entry.']);
+        }
+
+        // Add unique validation for invoice number only if it's different from existing
+        if ($invoiceNumber) {
+            $validationRules['invoice_number'] = 'nullable|string|unique:purchase_entries,invoice_number';
+            $validationRules['invoice_date'] = 'nullable|date';
+        }
+
+        $request->validate($validationRules);
+
         try {
-            return DB::transaction(function () use ($request, $id) {
+            return DB::transaction(function () use ($request, $id, $invoiceNumber, $invoiceDate) {
                 Log::info('Starting convertToPurchaseEntry', ['receipt_note_id' => $id]);
 
                 $receiptNote = ReceiptNote::with('items')->findOrFail($id);
-                
-                // Check if already converted
-                if ($receiptNote->is_converted) {
-                    Log::warning('Receipt note already converted', ['receipt_note_id' => $id]);
-                    return redirect()->back()->with('error', 'This receipt note has already been converted to a purchase entry.');
-                }
-                
                 Log::info('Receipt note loaded', ['receipt_note_id' => $receiptNote->id]);
 
                 $receivedProducts = array_filter($request->products, fn($product) => $product['quantity'] > 0);
@@ -235,16 +277,18 @@ class ReceiptNoteController extends Controller
                     'purchase_number' => 'PE-' . Str::random(8),
                     'purchase_order_id' => $request->purchase_order_id,
                     'purchase_date' => $request->receipt_date ?? $receiptNote->receipt_date,
-                    'invoice_number' => $request->invoice_number,
-                    'invoice_date' => $request->invoice_date,
+                    'invoice_number' => $invoiceNumber,
+                    'invoice_date' => $invoiceDate,
                     'party_id' => $receiptNote->party_id,
                     'note' => $request->note ?? $receiptNote->note,
                     'gst_amount' => 0, // Will be updated
                     'discount' => $discountRate,
-                    'from_receipt_note' => true, // Added flag
+                    'from_receipt_note' => true,
                 ]);
                 Log::info('Purchase entry created', [
                     'id' => $purchaseEntry->id,
+                    'invoice_number' => $invoiceNumber,
+                    'invoice_date' => $invoiceDate,
                     'discount' => $discountRate,
                 ]);
 
@@ -277,10 +321,6 @@ class ReceiptNoteController extends Controller
                     Log::info('Purchase entry item created', [
                         'purchase_entry_id' => $purchaseEntry->id,
                         'product_id' => $item['product_id'],
-                        'discount' => $discountRate,
-                        'cgst_rate' => $cgstRate,
-                        'sgst_rate' => $sgstRate,
-                        'igst_rate' => $igstRate,
                         'total_price' => $totalPrice,
                         'status' => $item['status'],
                     ]);
@@ -332,12 +372,14 @@ class ReceiptNoteController extends Controller
                     }
                 }
 
-                // Mark receipt note as converted before deleting items
-                $receiptNote->update(['is_converted' => true]);
+                // Mark receipt note as converted and update with invoice details
+                $receiptNote->update([
+                    'is_converted' => true,
+                    'invoice_number' => $invoiceNumber,
+                    'invoice_date' => $invoiceDate,
+                ]);
                 Log::info('Receipt note marked as converted', ['receipt_note_id' => $receiptNote->id]);
 
-                // Don't delete the receipt note and items - just mark as converted
-                // This preserves the audit trail
                 Log::info('Receipt note conversion completed successfully', ['receipt_note_id' => $receiptNote->id, 'purchase_entry_id' => $purchaseEntry->id]);
 
                 return redirect()->route('purchase_entries.index')->with('success', 'Receipt note converted to purchase entry successfully.');

@@ -9,7 +9,7 @@
                     <a href="{{ route('receipt_notes.index') }}" class="btn btn-light btn-sm">Cancel</a>
                 </div>
                 <div class="card-body p-4">
-                    <form action="{{ route('receipt_notes.store_conversion', $receiptNote->id) }}" method="POST">
+                    <form action="{{ route('receipt_notes.convert', $receiptNote->id) }}" method="POST">
                         @csrf
                         {{-- Top section: now requires Invoice details --}}
                         <div class="card p-3 mb-4">
@@ -51,6 +51,7 @@
                                         <th>CGST %</th>
                                         <th>SGST %</th>
                                         <th>IGST %</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -66,6 +67,12 @@
                                             <td><input type="number" name="products[{{$index}}][cgst_rate]" class="form-control" value="{{ $item->cgst_rate ?? '0' }}" step="0.01"></td>
                                             <td><input type="number" name="products[{{$index}}][sgst_rate]" class="form-control" value="{{ $item->sgst_rate ?? '0' }}" step="0.01"></td>
                                             <td><input type="number" name="products[{{$index}}][igst_rate]" class="form-control" value="{{ $item->igst_rate ?? '0' }}" step="0.01"></td>
+                                            <td>
+                                                <select name="products[{{$index}}][status]" class="form-select" required>
+                                                    <option value="received" {{ ($item->status ?? 'received') == 'received' ? 'selected' : '' }}>Received</option>
+                                                    <option value="pending" {{ ($item->status ?? '') == 'pending' ? 'selected' : '' }}>Pending</option>
+                                                </select>
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>

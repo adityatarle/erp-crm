@@ -444,16 +444,68 @@
 
             // Validate conversion form before submission
             $('#convert-btn').on('click', function(e) {
-                const invoiceNumber = $('#invoice_number').val();
-                const invoiceDate = $('#invoice_date').val();
+                const invoiceNumber = $('#invoice_number').val().trim();
+                const invoiceDate = $('#invoice_date').val().trim();
+
+                console.log('Conversion validation - Invoice Number:', invoiceNumber, 'Invoice Date:', invoiceDate);
 
                 if (!invoiceNumber || !invoiceDate) {
                     e.preventDefault();
                     alert('Please fill in Invoice Number and Invoice Date before converting to a purchase entry.');
-                    return;
+                    // Focus on the first empty field
+                    if (!invoiceNumber) {
+                        $('#invoice_number').focus();
+                    } else if (!invoiceDate) {
+                        $('#invoice_date').focus();
+                    }
+                    return false;
                 }
 
+                // Check if all products have required pricing information
+                let hasValidProducts = false;
+                let missingPriceProducts = [];
+                
+                $('.product-item-row').each(function() {
+                    const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
+                    const unitPrice = parseFloat($(this).find('.unit-price').val()) || 0;
+                    const productName = $(this).find('select[name$="[product_id]"] option:selected').text();
+                    
+                    if (quantity > 0) {
+                        hasValidProducts = true;
+                        if (unitPrice <= 0) {
+                            missingPriceProducts.push(productName);
+                        }
+                    }
+                });
+
+                if (!hasValidProducts) {
+                    e.preventDefault();
+                    alert('Please add at least one product with a valid quantity.');
+                    return false;
+                }
+
+                if (missingPriceProducts.length > 0) {
+                    e.preventDefault();
+                    alert('Please add unit prices for the following products: ' + missingPriceProducts.join(', '));
+                    return false;
+                }
+
+                // Update the conversion form with current values
                 updateConversionForm();
+                
+                // Final check that the hidden form has the correct values
+                const hiddenInvoiceNumber = $('#convert-receipt-note-form input[name="invoice_number"]').val();
+                const hiddenInvoiceDate = $('#convert-receipt-note-form input[name="invoice_date"]').val();
+                
+                console.log('Hidden form values - Invoice Number:', hiddenInvoiceNumber, 'Invoice Date:', hiddenInvoiceDate);
+                
+                if (!hiddenInvoiceNumber || !hiddenInvoiceDate) {
+                    e.preventDefault();
+                    alert('Error: Form data not properly synchronized. Please try again.');
+                    return false;
+                }
+
+                return true;
             });
 
             // Update conversion form on input change
