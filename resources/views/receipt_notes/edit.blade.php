@@ -341,8 +341,7 @@
                     productsHeader.style.display = 'grid';
                     productIndex++;
                     this.value = ''; // Reset select
-                    updateConversionForm();
-                    calculateTotals();
+                    // Note: updateConversionForm and calculateTotals will be called by global event listener
                 });
             }
 
@@ -354,11 +353,13 @@
                         productsList.innerHTML = '<p class="text-muted text-center p-4 border rounded">No products added.</p>';
                         productsHeader.style.display = 'none';
                     }
+                    // Manually trigger update since this is a remove action, not an input event
                     updateConversionForm();
                     calculateTotals();
                 }
             });
 
+            // Quantity validation only - calculation handled by global event listener
             productsList.addEventListener('input', function(e) {
                 if (e.target.classList.contains('quantity-input')) {
                     const input = e.target;
@@ -373,8 +374,7 @@
                         input.parentElement.appendChild(warning);
                         setTimeout(() => warning.remove(), 2000);
                     }
-                    updateConversionForm();
-                    calculateTotals();
+                    // Note: calculateTotals and updateConversionForm are called by global listener below
                 }
             });
 
