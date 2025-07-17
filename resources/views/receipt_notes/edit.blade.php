@@ -249,6 +249,7 @@
                         </div>
 
                         <div class="mt-4 text-end">
+                            <button type="button" class="btn btn-warning btn-sm me-2" onclick="calculateTotals()" id="recalculate-btn">🔄 Recalculate Totals</button>
                             <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Update Receipt Note</button>
                         </div>
                     </form>
@@ -399,9 +400,31 @@
                 $convertForm.find('input[name="note"]').val($('#note').val());
             }
 
-            // Calculate totals - IMPROVED VERSION
+            // Calculate totals - ENHANCED VERSION WITH BETTER DEBUGGING
             function calculateTotals() {
-                console.log('Calculating totals...'); // Debug log
+                console.log('🔄 Starting calculateTotals function...'); // Debug log
+                
+                // Check if required elements exist
+                const subtotalEl = $('#subtotal');
+                const totalDiscountEl = $('#total_discount');
+                const totalCgstEl = $('#total_cgst');
+                const totalSgstEl = $('#total_sgst');
+                const totalIgstEl = $('#total_igst');
+                const grandTotalEl = $('#grand_total');
+                
+                console.log('📊 Elements found:', {
+                    subtotal: subtotalEl.length,
+                    totalDiscount: totalDiscountEl.length,
+                    totalCgst: totalCgstEl.length,
+                    totalSgst: totalSgstEl.length,
+                    totalIgst: totalIgstEl.length,
+                    grandTotal: grandTotalEl.length
+                });
+                
+                if (subtotalEl.length === 0) {
+                    console.error('❌ Subtotal element not found!');
+                    return;
+                }
                 
                 let grandSubtotal = 0;
                 let grandTotalDiscount = 0;
@@ -410,24 +433,27 @@
                 let grandTotalIgst = 0;
 
                 const discountRate = parseFloat($('#discount').val()) || 0;
-                console.log('Global discount rate:', discountRate); // Debug log
+                console.log('💰 Global discount rate:', discountRate); // Debug log
 
-                $('.product-item-row').each(function(index) {
+                const productRows = $('.product-item-row');
+                console.log('📦 Found product rows:', productRows.length);
+
+                productRows.each(function(index) {
                     const $row = $(this);
                     const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
                     const unitPrice = parseFloat($row.find('.unit-price').val()) || 0;
                     
                     // Check for item-specific discount first, then global discount
                     const itemDiscount = parseFloat($row.find('.discount-input').val());
-                    const effectiveDiscountRate = !isNaN(itemDiscount) ? itemDiscount : discountRate;
+                    const effectiveDiscountRate = !isNaN(itemDiscount) && itemDiscount !== '' ? itemDiscount : discountRate;
                     
                     const cgstRate = parseFloat($row.find('.cgst-rate').val()) || 0;
                     const sgstRate = parseFloat($row.find('.sgst-rate').val()) || 0;
                     const igstRate = parseFloat($row.find('.igst-rate').val()) || 0;
 
-                    console.log(`Row ${index}:`, {quantity, unitPrice, effectiveDiscountRate, cgstRate, sgstRate, igstRate}); // Debug log
+                    console.log(`📋 Row ${index}:`, {quantity, unitPrice, effectiveDiscountRate, cgstRate, sgstRate, igstRate}); // Debug log
 
-                    if (quantity > 0 && unitPrice >= 0) {
+                    if (quantity > 0 && unitPrice > 0) {
                         const basePrice = quantity * unitPrice;
                         const discountAmount = basePrice * (effectiveDiscountRate / 100);
                         const priceAfterDiscount = basePrice - discountAmount;
@@ -442,34 +468,96 @@
                         grandTotalSgst += sgstAmount;
                         grandTotalIgst += igstAmount;
 
-                        console.log(`Row ${index} totals:`, {basePrice, discountAmount, priceAfterDiscount, cgstAmount, sgstAmount, igstAmount}); // Debug log
+                        console.log(`💵 Row ${index} calculations:`, {
+                            basePrice: basePrice.toFixed(2), 
+                            discountAmount: discountAmount.toFixed(2), 
+                            priceAfterDiscount: priceAfterDiscount.toFixed(2), 
+                            cgstAmount: cgstAmount.toFixed(2), 
+                            sgstAmount: sgstAmount.toFixed(2), 
+                            igstAmount: igstAmount.toFixed(2)
+                        }); // Debug log
+                    } else {
+                        console.log(`⚠️ Row ${index} skipped: quantity=${quantity}, unitPrice=${unitPrice}`);
                     }
                 });
 
                 const grandTotal = grandSubtotal + grandTotalCgst + grandTotalSgst + grandTotalIgst;
                 
-                console.log('Final totals:', {grandSubtotal, grandTotalDiscount, grandTotalCgst, grandTotalSgst, grandTotalIgst, grandTotal}); // Debug log
+                console.log('🎯 Final totals calculated:', {
+                    grandSubtotal: grandSubtotal.toFixed(2), 
+                    grandTotalDiscount: grandTotalDiscount.toFixed(2), 
+                    grandTotalCgst: grandTotalCgst.toFixed(2), 
+                    grandTotalSgst: grandTotalSgst.toFixed(2), 
+                    grandTotalIgst: grandTotalIgst.toFixed(2), 
+                    grandTotal: grandTotal.toFixed(2)
+                }); // Debug log
 
                 // Update the display elements
-                $('#subtotal').text('₹' + grandSubtotal.toFixed(2));
-                $('#total_discount').text('₹' + grandTotalDiscount.toFixed(2));
-                $('#total_cgst').text('₹' + grandTotalCgst.toFixed(2));
-                $('#total_sgst').text('₹' + grandTotalSgst.toFixed(2));
-                $('#total_igst').text('₹' + grandTotalIgst.toFixed(2));
-                $('#grand_total').text('₹' + grandTotal.toFixed(2));
+                try {
+                    subtotalEl.text('₹' + grandSubtotal.toFixed(2));
+                    totalDiscountEl.text('₹' + grandTotalDiscount.toFixed(2));
+                    totalCgstEl.text('₹' + grandTotalCgst.toFixed(2));
+                    totalSgstEl.text('₹' + grandTotalSgst.toFixed(2));
+                    totalIgstEl.text('₹' + grandTotalIgst.toFixed(2));
+                    grandTotalEl.text('₹' + grandTotal.toFixed(2));
+                    
+                    console.log('✅ Successfully updated all total display elements');
+                } catch (error) {
+                    console.error('❌ Error updating display elements:', error);
+                }
             }
 
-            // Validate conversion form before submission
+            // Make calculateTotals globally accessible for the manual button
+            window.calculateTotals = calculateTotals;
+
+            // Validate conversion form before submission - ENHANCED WITH FINANCIAL VALIDATION
             $('#convert-btn').on('click', function(e) {
+                console.log('🔄 Convert button clicked, validating financial details...');
+                
                 const invoiceNumber = $('#invoice_number').val();
                 const invoiceDate = $('#invoice_date').val();
+                let missingDetails = [];
+                let hasValidProducts = false;
 
-                if (!invoiceNumber || !invoiceDate) {
+                // Check invoice details
+                if (!invoiceNumber || invoiceNumber.trim() === '') {
+                    missingDetails.push('Invoice Number');
+                }
+                if (!invoiceDate || invoiceDate.trim() === '') {
+                    missingDetails.push('Invoice Date');
+                }
+
+                // Check product financial details
+                $('.product-item-row').each(function(index) {
+                    const $row = $(this);
+                    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
+                    const unitPrice = parseFloat($row.find('.unit-price').val()) || 0;
+                    
+                    if (quantity > 0) {
+                        hasValidProducts = true;
+                        if (unitPrice <= 0) {
+                            missingDetails.push(`Unit Price for product at row ${index + 1}`);
+                        }
+                    }
+                });
+
+                // If no valid products found
+                if (!hasValidProducts) {
+                    missingDetails.push('At least one product with quantity > 0');
+                }
+
+                // Show validation errors
+                if (missingDetails.length > 0) {
                     e.preventDefault();
-                    alert('Please fill in Invoice Number and Invoice Date before converting to a purchase entry.');
+                    const errorMessage = 'Cannot convert to Purchase Entry without complete financial details.\n\nMissing:\n• ' + 
+                                       missingDetails.join('\n• ') + 
+                                       '\n\nPlease fill in all required financial information before conversion.';
+                    alert(errorMessage);
+                    console.log('❌ Conversion blocked due to missing financial details:', missingDetails);
                     return;
                 }
 
+                console.log('✅ Financial validation passed, proceeding with conversion...');
                 updateConversionForm();
             });
 
